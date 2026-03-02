@@ -5,11 +5,10 @@ import {
   Box,
   Breadcrumbs,
   Button,
+  Card,
   Chip,
   Container,
   CssBaseline,
-  IconButton,
-  Link,
   Stack,
   ThemeProvider,
   Toolbar,
@@ -29,21 +28,15 @@ const theme = createTheme({
     mode: 'light',
     primary: { main: '#2358ff' },
     secondary: { main: '#1f9f8a' },
-    background: { default: '#f2f5fb', paper: '#ffffff' },
+    background: { default: '#eef3fb', paper: '#ffffff' },
     warning: { main: '#e8861f' },
     success: { main: '#1d9c5b' }
   },
   shape: { borderRadius: 14 },
-  spacing: 8,
   typography: {
     fontFamily: 'Inter, system-ui, sans-serif',
-    h4: { fontSize: '1.75rem', fontWeight: 700 },
-    h5: { fontSize: '1.35rem', fontWeight: 700 }
-  },
-  components: {
-    MuiCard: { styleOverrides: { root: { border: '1px solid #e3e9f4', boxShadow: '0 10px 24px rgba(22,34,66,.04)' } } },
-    MuiButton: { styleOverrides: { root: { borderRadius: 12, textTransform: 'none', fontWeight: 600 } } },
-    MuiChip: { styleOverrides: { root: { borderRadius: 10, fontWeight: 600 } } }
+    h4: { fontSize: '1.75rem', fontWeight: 750 },
+    h5: { fontSize: '1.3rem', fontWeight: 700 }
   }
 })
 
@@ -61,33 +54,47 @@ function TopNav() {
   const clearToken = useAuthStore((s) => s.clearToken)
 
   const crumbs = location.pathname.split('/').filter(Boolean)
+  const navItems = [
+    { label: 'Cases', path: '/cases' },
+    { label: 'Intake', path: '/cases/new' },
+    { label: 'Admin', path: '/admin' }
+  ]
 
   return (
-    <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: '1px solid #e3e9f4', backdropFilter: 'blur(8px)' }}>
-      <Toolbar sx={{ minHeight: 76 }}>
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ flexGrow: 1 }}>
-          <IconButton onClick={() => navigate('/cases')}><Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main' }}>LI</Avatar></IconButton>
-          <Stack spacing={0.25}>
+    <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: '1px solid #dce4f2' }}>
+      <Toolbar sx={{ minHeight: 78 }}>
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexGrow: 1 }}>
+          <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontWeight: 800, cursor: 'pointer' }} onClick={() => navigate('/cases')}>LI</Avatar>
+          <Stack spacing={0.1}>
             <Typography variant="h6" fontWeight={800}>Liver Insight Console</Typography>
-            <Typography variant="caption" color="text.secondary">CT/MRI decision-support platform · MVP</Typography>
+            <Typography variant="caption" color="text.secondary">Decision-support workspace</Typography>
           </Stack>
-          {token && <Chip size="small" color="primary" label="Authenticated session" />}
         </Stack>
+
         {token && (
-          <Stack direction="row" spacing={1}>
-            <Button onClick={() => navigate('/cases')}>Cases</Button>
-            <Button onClick={() => navigate('/cases/new')}>Intake</Button>
-            <Button onClick={() => navigate('/admin')}>Admin</Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {navItems.map((item) => (
+              <Button
+                key={item.path}
+                variant={location.pathname.startsWith(item.path) ? 'contained' : 'text'}
+                onClick={() => navigate(item.path)}
+              >
+                {item.label}
+              </Button>
+            ))}
+            <Chip size="small" color="primary" label="Authenticated" />
             <Button variant="outlined" onClick={() => { clearToken(); navigate('/login') }}>Logout</Button>
           </Stack>
         )}
       </Toolbar>
       {token && (
-        <Container maxWidth="xl" sx={{ pb: 1 }}>
-          <Breadcrumbs separator="›" aria-label="breadcrumb">
-            <Link underline="hover" color="inherit" onClick={() => navigate('/cases')} sx={{ cursor: 'pointer' }}>Home</Link>
-            {crumbs.map((c, idx) => <Typography key={`${c}-${idx}`} color="text.secondary">{c}</Typography>)}
-          </Breadcrumbs>
+        <Container maxWidth="xl" sx={{ pb: 1.2 }}>
+          <Card sx={{ px: 1.5, py: 0.8, bgcolor: '#f8fbff' }}>
+            <Breadcrumbs separator="›" aria-label="breadcrumb">
+              <Typography sx={{ cursor: 'pointer' }} onClick={() => navigate('/cases')}>home</Typography>
+              {crumbs.map((c, idx) => <Typography key={`${c}-${idx}`} color="text.secondary">{c}</Typography>)}
+            </Breadcrumbs>
+          </Card>
         </Container>
       )}
     </AppBar>
@@ -96,6 +103,7 @@ function TopNav() {
 
 export function App() {
   const navigate = useNavigate()
+
   useEffect(() => {
     const onExpired = () => navigate('/login')
     window.addEventListener('auth:expired', onExpired)
