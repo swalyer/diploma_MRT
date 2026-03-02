@@ -1,0 +1,24 @@
+{
+  "withLesion": {
+    "caseId": 101,
+    "status": "COMPLETED",
+    "classification": "suspicious lesion detected",
+    "confidence": 0.91,
+    "findings": [
+      {
+        "label": "Lesion A",
+        "confidence": 0.91,
+        "sizeMm": 24.3,
+        "volumeMm3": 4812.6,
+        "locationJson": "{\"segment\":\"S6\"}"
+      }
+    ]
+  },
+  "withoutLesion": {
+    "caseId": 102,
+    "status": "COMPLETED",
+    "classification": "no suspicious lesion",
+    "confidence": 0.87,
+    "findings": []
+  }
+}
