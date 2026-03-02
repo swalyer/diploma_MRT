@@ -63,6 +63,12 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
 
 ### Troubleshooting
 - `no main manifest attribute, in app.jar`: backend image built the wrong artifact; rebuild with `docker compose build backend --no-cache`.
+- `unzip: not found` during backend image build: use the latest repository version where manifest validation uses JDK `jar` tooling (no `unzip` dependency), then rebuild without cache:
+  ```bash
+  git pull
+  docker compose build backend --no-cache
+  ```
+- macOS note: `apt-get` is expected **inside Debian-based containers**, not on your Mac host shell. Do not run `apt-get` locally on macOS.
 - `relation "app_user" does not exist` during Postgres init: remove old primary DB volume so Flyway can recreate schema+seed in order:
   ```bash
   docker compose down -v
