@@ -70,3 +70,20 @@ Services:
 - MRI lesion path is experimental and may return liver-only results.
 - 2D viewer is now artifact-backed for NIfTI (window/level + overlays); full OHIF DICOM-native workflow is still pending.
 - 3D viewer loads generated liver/lesion GLB meshes when artifacts exist; if lesion mesh is absent, UI explicitly reports the reason instead of rendering synthetic geometry.
+
+
+## Frontend capability status (honest snapshot)
+- **Implemented**: authenticated app shell, protected routes, case dashboard, intake flow, artifact-backed NIfTI 2D viewer, artifact-backed GLB/GLTF 3D viewer, report/artifact/technical tabs.
+- **Partial**: execution mode is inferred from artifact availability (explicit mode field not currently provided by status DTO), lesion click metadata is coarse, admin controls are informational.
+- **Missing**: OHIF DICOM-native viewer, OBJ/STL/VTK frontend mesh loaders, explicit model-version/timing fields on case status payload used by UI.
+
+## Frontend acceptance checklist
+- Login redesigned (premium layout): **implemented**
+- App shell with route protection and session handling: **implemented**
+- Cases list polished with filters/states: **implemented**
+- Create/upload flow with drag-drop and validation: **implemented**
+- Case details as flagship screen: **implemented**
+- 2D viewer (artifact-backed): **implemented** (NIfTI path), DICOM-native: **missing**
+- 3D viewer (artifact-backed): **implemented** (GLB/GLTF), advanced metadata interactions: **partial**
+- Truthful real/mock/experimental messaging: **implemented**
+- Admin operational controls: **partial**
