@@ -4,9 +4,8 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn -q -DskipTests package \
  && test -f target/mrt-backend-0.0.1-SNAPSHOT.jar \
- && jar xf target/mrt-backend-0.0.1-SNAPSHOT.jar META-INF/MANIFEST.MF \
- && grep -Eq '^Main-Class: org.springframework.boot.loader.launch.JarLauncher|^Main-Class: org.springframework.boot.loader.JarLauncher' META-INF/MANIFEST.MF \
- && rm -rf META-INF
+ && unzip -p target/mrt-backend-0.0.1-SNAPSHOT.jar META-INF/MANIFEST.MF | tee /tmp/manifest.txt \
+ && grep -Eq '^Main-Class: org.springframework.boot.loader.launch.JarLauncher|^Main-Class: org.springframework.boot.loader.JarLauncher' /tmp/manifest.txt
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
