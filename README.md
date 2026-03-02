@@ -34,6 +34,42 @@ Services:
 
 The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_net`, `replication_net`, `obs_net`) so the same network model can be defended in a multi-host setup.
 
+## Deterministic startup and demo login
+1. Start full stack:
+   ```bash
+   docker compose up --build -d
+   ```
+2. Verify health:
+   ```bash
+   docker compose ps
+   curl -fsS http://localhost/actuator/health
+   ```
+3. Demo credentials (both seeded by Flyway after schema migration):
+   - `admin@demo.local` / `Admin123!`
+   - `doctor@demo.local` / `Admin123!`
+4. Login smoke test:
+   ```bash
+   curl -i -X POST http://localhost/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@demo.local","password":"Admin123!"}'
+   ```
+5. Create case smoke test (replace `<JWT>` with token from login):
+   ```bash
+   curl -i -X POST http://localhost/api/cases \
+     -H "Authorization: Bearer <JWT>" \
+     -H "Content-Type: application/json" \
+     -d '{"patientPseudoId":"demo-patient-1","modality":"CT"}'
+   ```
+
+### Troubleshooting
+- `no main manifest attribute, in app.jar`: backend image built the wrong artifact; rebuild with `docker compose build backend --no-cache`.
+- `relation "app_user" does not exist` during Postgres init: remove old primary DB volume so Flyway can recreate schema+seed in order:
+  ```bash
+  docker compose down -v
+  docker compose up --build -d
+  ```
+- Backend health not ready yet: check `docker compose logs backend -f` until `/actuator/health` returns `{"status":"UP"}`.
+
 ## ML execution modes
 - `ML_MODE=mock` — deterministic mock artifacts.
 - `ML_MODE=real` — adapter-driven real path:
