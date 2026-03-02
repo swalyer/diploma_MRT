@@ -21,15 +21,18 @@ Incremental production-like MVP for liver CT/MRI decision support. The project k
 - OpenSwissHCC (MRI HCC validation)
 - Optional: CT-ORG, HCC-TACE-SEG, TCGA-LIHC
 
-## Run locally (Docker)
+## Run locally (Docker, segmented MVP topology)
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Services:
-- Frontend: http://localhost:5173
-- Backend Swagger: http://localhost:8080/swagger-ui/index.html
-- ML service docs: http://localhost:8000/docs
+- Ingress + Frontend: http://localhost
+- Backend API (via ingress): http://localhost/api
+- Backend Swagger (internal direct): http://localhost:8080/swagger-ui/index.html
+- MinIO console (admin): http://localhost:9001
+
+The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_net`, `replication_net`, `obs_net`) so the same network model can be defended in a multi-host setup.
 
 ## ML execution modes
 - `ML_MODE=mock` — deterministic mock artifacts.
@@ -128,3 +131,18 @@ Services:
 - **Mock:** deterministic artifact/result generation with `ML_MODE=mock`.
 - **Experimental:** MRI path and MedSAM-assisted branches.
 - **Missing:** OHIF DICOM-native frontend flow.
+
+## Distributed deployment docs
+- `docs/network-architecture.md`
+- `docs/deployment-topology.md`
+- `docs/database-topology.md`
+- `docs/ports-and-flows.md`
+- diagrams in `docs/diagrams/*.mmd`
+
+Host-oriented compose files:
+- `docker-compose.edge.yml`
+- `docker-compose.app.yml`
+- `docker-compose.data.yml`
+- `docker-compose.observability.yml`
+
+Environment contract for distributed setup is documented in `.env.example` (including `APP_PUBLIC_BASE_URL`, `VITE_API_BASE_URL`, `APP_DB_PRIMARY_*`, `APP_DB_REPLICA_*`, `APP_AUDIT_DB_*`, `APP_STORAGE_*`, `APP_OBSERVABILITY_ENABLED`, `APP_LOG_LEVEL`).

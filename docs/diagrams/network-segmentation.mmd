@@ -1,0 +1,39 @@
+flowchart LR
+    subgraph H1[Host 1 - Edge]
+      RP[reverse-proxy]
+      FE[frontend]
+    end
+
+    subgraph H2[Host 2 - Application]
+      BE[backend]
+      ML[ml-service]
+    end
+
+    subgraph H3[Host 3 - Data]
+      P1[(postgres-primary)]
+      PR[(postgres-replica)]
+      AUD[(audit-postgres)]
+      MINIO[(minio)]
+    end
+
+    subgraph H4[Host 4 - Observability]
+      PROM[prometheus]
+      GRAF[grafana]
+    end
+
+    C[Client] --> RP
+    RP --> FE
+    RP --> BE
+    BE --> ML
+    BE --> P1
+    BE --> PR
+    BE --> AUD
+    BE --> MINIO
+    ML --> MINIO
+    PR --> P1
+    PROM --> BE
+    PROM --> ML
+    PROM --> P1
+    PROM --> PR
+    PROM --> AUD
+    GRAF --> PROM
