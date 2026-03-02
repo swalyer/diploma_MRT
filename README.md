@@ -69,7 +69,7 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
   docker compose build backend --no-cache
   ```
 - macOS note: `apt-get` is expected **inside Debian-based containers**, not on your Mac host shell. Do not run `apt-get` locally on macOS.
-- `relation "app_user" does not exist` during Postgres init: remove old primary DB volume so Flyway can recreate schema+seed in order:
+- `relation "app_user" does not exist` during Postgres init, or `Found non-empty schema(s) "public" but no schema history table`: reset volumes so Flyway can recreate schema+seed deterministically on the primary DB:
   ```bash
   docker compose down -v
   docker compose up --build -d

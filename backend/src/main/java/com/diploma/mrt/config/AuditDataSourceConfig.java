@@ -1,5 +1,6 @@
 package com.diploma.mrt.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +29,7 @@ public class AuditDataSourceConfig {
     }
 
     @Bean(name = "auditJdbcTemplate")
-    public JdbcTemplate auditJdbcTemplate(DataSource auditDataSource) {
+    public JdbcTemplate auditJdbcTemplate(@Qualifier("auditDataSource") DataSource auditDataSource) {
         return new JdbcTemplate(auditDataSource);
     }
 }
