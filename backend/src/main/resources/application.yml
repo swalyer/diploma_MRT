@@ -14,6 +14,7 @@ spring:
 app:
   jwt-secret: ${APP_JWT_SECRET:dev-secret}
   ml-url: ${APP_ML_URL:http://localhost:8000}
+  ml-mode: ${APP_ML_MODE:mock}
   storage-root: ${APP_STORAGE_ROOT:./storage}
 server:
   port: 8080

@@ -11,15 +11,22 @@ import java.util.Map;
 @Component
 public class MlClient {
     private final RestClient restClient;
+    private final String executionMode;
 
-    public MlClient(@Value("${app.ml-url}") String baseUrl) {
+    public MlClient(@Value("${app.ml-url}") String baseUrl, @Value("${app.ml-mode:mock}") String executionMode) {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        this.executionMode = executionMode;
     }
 
     public CaseDtos.MlResult infer(Long caseId, String modality, String inputObjectKey) {
         return restClient.post().uri("/infer/case")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("caseId", caseId, "modality", modality, "fileReferences", Map.of("inputObjectKey", inputObjectKey)))
+                .body(Map.of(
+                        "caseId", caseId,
+                        "modality", modality,
+                        "executionMode", executionMode,
+                        "fileReferences", Map.of("inputObjectKey", inputObjectKey)
+                ))
                 .retrieve()
                 .body(CaseDtos.MlResult.class);
     }

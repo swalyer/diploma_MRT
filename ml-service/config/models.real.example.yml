@@ -1,0 +1,12 @@
+totalsegmentator:
+  name: TotalSegmentator
+  enabled: true
+  command: TotalSegmentator
+nnunetv2:
+  name: nnUNet v2
+  enabled: false
+  command: nnUNetv2_predict
+  weights: Dataset003_Liver
+medsam:
+  name: MedSAM
+  enabled: false

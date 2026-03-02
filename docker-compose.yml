@@ -30,6 +30,7 @@ services:
       APP_JWT_SECRET: dev-secret
       APP_ML_URL: http://ml-service:8000
       APP_STORAGE_ROOT: /data/storage
+      APP_ML_MODE: ${APP_ML_MODE:mock}
     depends_on:
       - postgres
       - ml-service
@@ -40,8 +41,9 @@ services:
   ml-service:
     build: ./ml-service
     environment:
-      ML_MODE: mock
-      ARTIFACTS_ROOT: /data/storage/ml
+      ML_MODE: ${ML_MODE:mock}
+      ML_ARTIFACTS_ROOT: /data/storage
+      ML_MODELS_CONFIG_PATH: /app/config/models.real.example.yml
     volumes:
       - ./storage:/data/storage
     ports:
