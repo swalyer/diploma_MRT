@@ -75,6 +75,11 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
   docker compose up --build -d
   ```
 - Backend health not ready yet: check `docker compose logs backend -f` until `/actuator/health` returns `{"status":"UP"}`.
+- `Schema-validation: missing table [analysis_case]`: schema was initialized from an older naming revision (`case_entity`/`case`) and now conflicts with JPA mapping. The repository includes a reconciliation migration; for a guaranteed clean local re-init run:
+  ```bash
+  docker compose down -v
+  docker compose up --build -d
+  ```
 
 ## ML execution modes
 - `ML_MODE=mock` — deterministic mock artifacts.
