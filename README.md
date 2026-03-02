@@ -87,3 +87,16 @@ Services:
 - 3D viewer (artifact-backed): **implemented** (GLB/GLTF), advanced metadata interactions: **partial**
 - Truthful real/mock/experimental messaging: **implemented**
 - Admin operational controls: **partial**
+
+
+## Frontend MVP claim matrix (implemented vs partial vs missing vs inferred)
+- Cases page explicit state hierarchy (loading/error/success-empty/success-results): **implemented**
+- Case details core-failure safe shell (no pseudo-known chips on failed fetch): **implemented**
+- Execution mode displayed as authoritative backend field: **missing**
+- Execution mode displayed as inferred from artifacts: **inferred only**
+- Model version shown from case-status API: **missing**
+- 2D imaging NIfTI artifact-backed viewer: **implemented**
+- DICOM/OHIF native viewer workflow: **missing**
+- 3D liver mesh viewer (artifact-backed): **implemented**
+- 3D lesion metadata interactions: **partial**
+- Missing-model-weights explicit reason in UI: **missing**

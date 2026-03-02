@@ -1,58 +1,45 @@
-# Viewer and model-backed flow verification
+# Viewer and model verification (strict truth report)
 
 Date: 2026-03-02
 
 ## 3D verification
 
-- **Frontend 3D renderer component**: `frontend/src/components/Viewer3D.tsx`.
-- **Backend endpoint for mesh ids**: `GET /api/cases/{id}/viewer/3d` (consumed in `CaseDetailsPage`).
-- **Backend endpoint for mesh files**: `GET /api/files/{artifactId}/download` (used as GLTF loader URL).
-- **Storage-backed reality**: frontend never creates synthetic anatomy fallback; it only renders meshes when artifact IDs exist.
+- **3D renderer component**: `frontend/src/components/Viewer3D.tsx`.
+- **Mesh metadata endpoint**: `GET /api/cases/{id}/viewer/3d` (returns liver/lesion mesh artifact IDs).
+- **Mesh file endpoint**: `GET /api/files/{artifactId}/download`.
+- **Artifact truth**: viewer renders only backend-provided mesh artifacts; no synthetic fallback anatomy code path exists.
 
-### Accepted mesh formats (current frontend)
-- Implemented loader: `useGLTF` => practical support is **GLB/GLTF**.
-- Not implemented in frontend: OBJ/STL/VTK loaders.
+### Supported formats
+- **Implemented**: GLB/GLTF (`useGLTF`).
+- **Missing**: OBJ/STL/VTK loaders in current frontend.
 
-### Feature truth table
-- Liver mesh render: **Implemented (real artifact-backed)**.
-- Lesion mesh render: **Implemented when artifact id exists**.
-- Lesion missing state: **Implemented with explicit warning**.
-- Click lesion metadata panel: **Partial** (selection alert only; no structured metadata endpoint binding).
-- Reset camera: **Implemented** (canvas remount).
-- Screenshot export: **Implemented** (`canvas.toDataURL` download).
-- Fake mesh fallback: **Not present** in current component.
+### Feature truth matrix
+- Liver mesh render: **Implemented** (artifact-backed).
+- Lesion mesh render: **Implemented when artifact exists**.
+- Lesion-missing degradation: **Implemented** (liver viewer still usable).
+- Reset camera: **Implemented** (canvas key remount).
+- Screenshot export: **Implemented** (`canvas.toDataURL`).
+- Lesion click metadata: **Partial** (selection notice only, no structured metadata payload binding).
+- Fake geometry fallback: **Missing by design** (none present).
 
-## Model verification from frontend
+## 2D verification
 
-### Where UI indicates mock vs real
-- Case details capability mode is inferred from artifact presence:
-  - `real-or-hybrid` if liver mask artifact exists.
-  - `mock-or-pending` otherwise.
-- This is intentionally labeled as inferred because status DTO currently does not expose explicit `executionMode`.
+- **2D renderer component**: `frontend/src/components/Medical2DViewer.tsx`.
+- **File access path**: artifact download URLs from backend artifact inventory.
+- **Auth handling**: artifact fetch includes bearer token.
+- **Implemented controls**: base source selection, slice navigation, window width/center, liver/lesion overlays.
+- **Pending support**: OHIF/DICOM-native workflow is not implemented and explicitly labeled pending.
 
-### Output types frontend expects/displays
-- Liver mask artifact (`LIVER_MASK`)
-- Lesion mask artifact (`LESION_MASK`)
-- Liver mesh artifact id (`viewer/3d` response)
-- Lesion mesh artifact id (`viewer/3d` response)
-- Report text (`/report`)
-- Structured findings (`/findings`)
-- Stage audit trail (`/status`)
+## Model-output surfacing verification
 
-### Distinguishing partial model paths
-- Frontend can distinguish:
-  - liver outputs available / unavailable
-  - lesion outputs available / unavailable
-  - mesh outputs available / unavailable
-- Frontend cannot yet deterministically distinguish:
-  - "lesion model unconfigured" vs "no lesion found" vs "stage failed" (reason is not provided as dedicated machine-readable field in consumed payloads).
+- Mock vs real state in UI: **inferred** from artifact presence (`LIVER_MASK` etc.), not explicit execution mode field.
+- Execution mode explicit in status DTO consumed by frontend: **No** (inferred only).
+- MRI status: **experimental** banner/chip shown.
+- Mesh availability: **explicit** from viewer 3D payload IDs.
+- Missing model weights: **not explicitly surfaced** (no dedicated backend reason field consumed by frontend).
+- Model version in case status UI: **not exposed by API payload currently used**.
 
-### Honesty check
-- UI labels MRI as experimental.
-- UI avoids claiming OHIF/DICOM is implemented.
-- UI avoids claiming explicit model-version/timing traceability where API does not provide it.
+## Integrity conclusions
 
-## Recommendation to close remaining truth gaps
-1. Extend backend status DTO with `executionMode`, `modelVersion`, `stageTimings`, and machine-readable stage warnings.
-2. Add dedicated lesion metadata endpoint for 3D click interactions.
-3. Add explicit failure reason taxonomy (`weights_missing`, `no_lesion_detected`, `adapter_error`).
+- Viewer surfaces are implementation-honest for current shipped behavior.
+- Major truth gaps are API-contract level (explicit execution mode/model version/reason taxonomy), not hidden by frontend wording.
