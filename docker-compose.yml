@@ -6,8 +6,10 @@ services:
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
     networks:
@@ -68,10 +70,20 @@ services:
       APP_OBSERVABILITY_ENABLED: ${APP_OBSERVABILITY_ENABLED:-true}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
     depends_on:
-      - postgres-primary
-      - postgres-replica
-      - audit-postgres
-      - ml-service
+      postgres-primary:
+        condition: service_healthy
+      postgres-replica:
+        condition: service_started
+      audit-postgres:
+        condition: service_started
+      ml-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
     volumes:
       - ./storage:/data/storage
     networks:
@@ -102,11 +114,16 @@ services:
       POSTGRES_REPL_PASSWORD: replicator_pass
     volumes:
       - pg_primary_data:/var/lib/postgresql/data
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/20-seed.sql:ro
       - ./deploy/postgres/init-primary-replication.sh:/docker-entrypoint-initdb.d/30-init-replication.sh:ro
       - ./deploy/postgres/postgresql-primary.conf:/etc/postgresql/postgresql.conf:ro
       - ./deploy/postgres/pg_hba-primary.conf:/etc/postgresql/pg_hba.conf:ro
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${APP_DB_PRIMARY_USERNAME:-mrt} -d ${APP_DB_PRIMARY_NAME:-mrt}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     networks:
       - data_net
       - replication_net
