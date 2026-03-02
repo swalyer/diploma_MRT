@@ -1,27 +1,49 @@
+import { Alert, Button, FormControlLabel, Slider, Stack, Switch, Typography } from '@mui/material'
+import { OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import { useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
+import * as THREE from 'three'
 
-export function Viewer3D({ mode }: { mode: 'mock' | 'real' }) {
-  const [opacity, setOpacity] = useState(0.5)
+function MeshAsset({ url, color, opacity }: { url: string; color: string; opacity: number }) {
+  const gltf = useGLTF(url)
+  const scene = useMemo(() => {
+    const clone = gltf.scene.clone()
+    clone.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        ;(obj as THREE.Mesh).material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity })
+      }
+    })
+    return clone
+  }, [gltf.scene, color, opacity])
+  return <primitive object={scene} />
+}
+
+export function Viewer3D({ liverArtifactId, lesionArtifactId }: { liverArtifactId: number | null; lesionArtifactId: number | null }) {
+  const [opacity, setOpacity] = useState(0.45)
   const [showLesion, setShowLesion] = useState(true)
-  const [selected, setSelected] = useState<string | null>(null)
-  return <div>
-    <div style={{display:'flex', gap:12}}>
-      <span style={{padding:'2px 8px', borderRadius:8, background: mode==='real' ? '#d1ffd1' : '#ffe0b2'}}>{mode.toUpperCase()}</span>
-      <label>Opacity <input type="range" min="0.1" max="1" step="0.1" value={opacity} onChange={(e)=>setOpacity(Number(e.target.value))} /></label>
-      <label><input type="checkbox" checked={showLesion} onChange={(e)=>setShowLesion(e.target.checked)} /> Show lesion</label>
-      <button onClick={()=>setSelected(null)}>Reset camera</button>
-    </div>
-    {selected && <div>Lesion metadata: {selected}</div>}
-    <div style={{height:300}}>
-      <Canvas camera={{position:[2,2,2]}}>
-        <ambientLight />
-        <mesh><sphereGeometry args={[1, 32, 32]} /><meshStandardMaterial color={'#6aa8ff'} transparent opacity={opacity} /></mesh>
-        {showLesion && <mesh position={[0.4,0.2,0.1]} onClick={()=>setSelected('segment S6')}><sphereGeometry args={[0.2, 16, 16]} /><meshStandardMaterial color={'red'} /></mesh>}
-        <OrbitControls />
+
+  if (!liverArtifactId) {
+    return <Alert severity="info">Liver mesh artifact is not available yet. Run inference in real mode first.</Alert>
+  }
+
+  return <Stack spacing={1.5}>
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Typography variant="body2">Liver opacity</Typography>
+      <Slider min={0.1} max={0.9} step={0.05} value={opacity} onChange={(_, v)=>setOpacity(Number(v))} sx={{ maxWidth: 220 }} />
+      <FormControlLabel control={<Switch checked={showLesion} onChange={(_, v)=>setShowLesion(v)} />} label="Show lesion" />
+      <Button size="small" variant="outlined" onClick={() => window.location.reload()}>Reset camera</Button>
+    </Stack>
+    <div style={{ height: 420, borderRadius: 12, overflow: 'hidden', border: '1px solid #d4dce8' }}>
+      <Canvas camera={{ position: [150, 120, 150], fov: 40 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[1, 1, 1]} intensity={1} />
+        <Suspense fallback={null}>
+          <MeshAsset url={`http://localhost:8080/api/files/${liverArtifactId}/download`} color="#7f93aa" opacity={opacity} />
+          {showLesion && lesionArtifactId && <MeshAsset url={`http://localhost:8080/api/files/${lesionArtifactId}/download`} color="#ef3d58" opacity={0.9} />}
+        </Suspense>
+        <OrbitControls makeDefault />
       </Canvas>
     </div>
-    <button>Export screenshot</button>
-  </div>
+    {!lesionArtifactId && <Alert severity="warning">Lesion mesh missing: lesion model may be unconfigured or no lesion detected.</Alert>}
+  </Stack>
 }

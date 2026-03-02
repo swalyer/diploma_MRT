@@ -68,4 +68,5 @@ Services:
 ## Known limitations
 - Real inference depends on locally installed TotalSegmentator/nnUNet and weights.
 - MRI lesion path is experimental and may return liver-only results.
-- 2D diagnostic viewer integration currently provides an OHIF/Cornerstone migration path placeholder.
+- 2D viewer is now artifact-backed for NIfTI (window/level + overlays); full OHIF DICOM-native workflow is still pending.
+- 3D viewer loads generated liver/lesion GLB meshes when artifacts exist; if lesion mesh is absent, UI explicitly reports the reason instead of rendering synthetic geometry.
