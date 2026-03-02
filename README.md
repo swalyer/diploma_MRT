@@ -34,6 +34,48 @@ Services:
 
 The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_net`, `replication_net`, `obs_net`) so the same network model can be defended in a multi-host setup.
 
+## Deterministic startup and demo login
+1. Start full stack:
+   ```bash
+   docker compose up --build -d
+   ```
+2. Verify health:
+   ```bash
+   docker compose ps
+   curl -fsS http://localhost/actuator/health
+   ```
+3. Demo credentials (both seeded by Flyway after schema migration):
+   - `admin@demo.local` / `Admin123!`
+   - `doctor@demo.local` / `Admin123!`
+4. Login smoke test:
+   ```bash
+   curl -i -X POST http://localhost/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@demo.local","password":"Admin123!"}'
+   ```
+5. Create case smoke test (replace `<JWT>` with token from login):
+   ```bash
+   curl -i -X POST http://localhost/api/cases \
+     -H "Authorization: Bearer <JWT>" \
+     -H "Content-Type: application/json" \
+     -d '{"patientPseudoId":"demo-patient-1","modality":"CT"}'
+   ```
+
+### Troubleshooting
+- `no main manifest attribute, in app.jar`: backend image built the wrong artifact; rebuild with `docker compose build backend --no-cache`.
+- `unzip: not found` during backend image build: use the latest repository version where manifest validation uses JDK `jar` tooling (no `unzip` dependency), then rebuild without cache:
+  ```bash
+  git pull
+  docker compose build backend --no-cache
+  ```
+- macOS note: `apt-get` is expected **inside Debian-based containers**, not on your Mac host shell. Do not run `apt-get` locally on macOS.
+- `relation "app_user" does not exist` during Postgres init, or `Found non-empty schema(s) "public" but no schema history table`: reset volumes so Flyway can recreate schema+seed deterministically on the primary DB:
+  ```bash
+  docker compose down -v
+  docker compose up --build -d
+  ```
+- Backend health not ready yet: check `docker compose logs backend -f` until `/actuator/health` returns `{"status":"UP"}`.
+
 ## ML execution modes
 - `ML_MODE=mock` — deterministic mock artifacts.
 - `ML_MODE=real` — adapter-driven real path:

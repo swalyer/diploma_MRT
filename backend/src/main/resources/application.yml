@@ -11,6 +11,9 @@ spring:
         format_sql: true
   flyway:
     enabled: true
+    url: ${SPRING_FLYWAY_URL:jdbc:postgresql://localhost:5432/mrt}
+    user: ${SPRING_FLYWAY_USER:mrt}
+    password: ${SPRING_FLYWAY_PASSWORD:mrt}
 
 logging:
   level:
@@ -42,3 +45,13 @@ app:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
