@@ -43,7 +43,7 @@ class CaseServiceFlowTest {
                 "COMPLETED", "real", "{}", "t", "{}", List.of(),
                 "a", "l", "les", "lm", "lem"));
 
-        CaseServiceImpl svc = new CaseServiceImpl(caseRepo, userRepo, artifactRepo, findingRepo, reportRepo, runRepo, storage, ml, audit);
+        CaseServiceImpl svc = new CaseServiceImpl(caseRepo, userRepo, artifactRepo, findingRepo, reportRepo, runRepo, storage, ml, audit, "mock");
         svc.processAsync(1L);
 
         verify(artifactRepo, atLeast(3)).save(any(Artifact.class));

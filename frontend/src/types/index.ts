@@ -11,6 +11,9 @@ export type StatusPayload = {
   caseId: number
   status: string
   inferenceStatus: string
+  executionMode: string
+  modelVersion: string
+  metricsJson: string | null
   stageAuditTrail: Array<{ action: string; at: string }>
 }
 

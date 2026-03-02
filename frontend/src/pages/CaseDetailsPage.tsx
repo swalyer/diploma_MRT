@@ -77,13 +77,13 @@ export function CaseDetailsPage() {
 
   const capability = useMemo(
     () => ({
-      mode: artifacts.some((a) => a.type === 'LIVER_MASK') ? 'inferred real-or-hybrid' : 'inferred mock-or-pending',
+      mode: status?.executionMode ? `backend: ${status.executionMode}` : 'not exposed by API',
       liverMask: artifacts.some((a) => a.type === 'LIVER_MASK'),
       lesionMask: artifacts.some((a) => a.type === 'LESION_MASK'),
       liverMesh: Boolean(viewer3d?.liverMeshArtifactId),
       lesionMesh: Boolean(viewer3d?.lesionMeshArtifactId)
     }),
-    [artifacts, viewer3d]
+    [artifacts, viewer3d, status]
   )
 
   if (state === 'loading') return <Card><CardContent><Typography>Loading case workspace…</Typography></CardContent></Card>
@@ -168,8 +168,8 @@ export function CaseDetailsPage() {
               <Typography variant="h6">Execution summary</Typography>
               <Stack mt={1.5} spacing={1}>
                 <Typography variant="body2">Findings count: {findings.length}</Typography>
-                <Typography variant="body2">Model version: not exposed by API</Typography>
-                <Typography variant="body2">Execution mode: inferred from artifact presence only</Typography>
+                <Typography variant="body2">Model version: {status?.modelVersion || 'not exposed by API'}</Typography>
+                <Typography variant="body2">Execution mode: {status?.executionMode || 'not exposed by API'}</Typography>
                 <Typography variant="body2">Missing model weights: not explicitly surfaced by API</Typography>
               </Stack>
             </CardContent></Card>
@@ -219,7 +219,7 @@ export function CaseDetailsPage() {
               ))}
             </List>
           )}
-          <Alert severity="info">Execution mode and model version are not explicitly included in status payload; frontend labels these as inferred or unavailable.</Alert>
+          <Alert severity="info">Status payload now includes backend execution mode/model version when available; missing values are shown as unavailable.</Alert>
         </CardContent></Card>
       )}
 
