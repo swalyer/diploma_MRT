@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mrt}
+    username: ${SPRING_DATASOURCE_USERNAME:mrt}
+    password: ${SPRING_DATASOURCE_PASSWORD:mrt}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+app:
+  jwt-secret: ${APP_JWT_SECRET:dev-secret}
+  ml-url: ${APP_ML_URL:http://localhost:8000}
+  storage-root: ${APP_STORAGE_ROOT:./storage}
+server:
+  port: 8080
