@@ -9,6 +9,7 @@ import com.diploma.mrt.repository.*;
 import com.diploma.mrt.service.AuditService;
 import com.diploma.mrt.service.CaseService;
 import com.diploma.mrt.service.StorageService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +31,9 @@ public class CaseServiceImpl implements CaseService {
     private final StorageService storageService;
     private final MlClient mlClient;
     private final AuditService auditService;
+    private final String executionMode;
 
-    public CaseServiceImpl(CaseRepository caseRepository, UserRepository userRepository, ArtifactRepository artifactRepository, FindingRepository findingRepository, ReportRepository reportRepository, InferenceRunRepository inferenceRunRepository, StorageService storageService, MlClient mlClient, AuditService auditService) {
+    public CaseServiceImpl(CaseRepository caseRepository, UserRepository userRepository, ArtifactRepository artifactRepository, FindingRepository findingRepository, ReportRepository reportRepository, InferenceRunRepository inferenceRunRepository, StorageService storageService, MlClient mlClient, AuditService auditService, @Value("${app.ml-mode:mock}") String executionMode) {
         this.caseRepository = caseRepository;
         this.userRepository = userRepository;
         this.artifactRepository = artifactRepository;
@@ -41,6 +43,7 @@ public class CaseServiceImpl implements CaseService {
         this.storageService = storageService;
         this.mlClient = mlClient;
         this.auditService = auditService;
+        this.executionMode = executionMode;
     }
 
     @Override
@@ -152,6 +155,9 @@ public class CaseServiceImpl implements CaseService {
     }
 
     private void addArtifact(CaseEntity caseEntity, String type, String objectKey, String mimeType) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
         Artifact artifact = new Artifact();
         artifact.setCaseEntity(caseEntity);
         artifact.setType(type);
@@ -202,7 +208,15 @@ public class CaseServiceImpl implements CaseService {
             row.put("at", a.getCreatedAt().toString());
             return row;
         }).toList();
-        return new CaseDtos.StatusResponse(id, caseEntity.getStatus(), run == null ? "N/A" : run.getStatus().name(), stages);
+        return new CaseDtos.StatusResponse(
+                id,
+                caseEntity.getStatus(),
+                run == null ? "N/A" : run.getStatus().name(),
+                executionMode,
+                run == null ? "N/A" : run.getModelVersion(),
+                run == null ? null : run.getMetricsJson(),
+                stages
+        );
     }
 
     @Override

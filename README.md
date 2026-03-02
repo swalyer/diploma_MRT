@@ -74,8 +74,8 @@ Services:
 
 ## Frontend capability status (honest snapshot)
 - **Implemented**: authenticated app shell, protected routes, case dashboard, intake flow, artifact-backed NIfTI 2D viewer, artifact-backed GLB/GLTF 3D viewer, report/artifact/technical tabs.
-- **Partial**: execution mode is inferred from artifact availability (explicit mode field not currently provided by status DTO), lesion click metadata is coarse, admin controls are informational.
-- **Missing**: OHIF DICOM-native viewer, OBJ/STL/VTK frontend mesh loaders, explicit model-version/timing fields on case status payload used by UI.
+- **Partial**: lesion click metadata is coarse, admin controls are informational.
+- **Missing**: OHIF DICOM-native viewer, OBJ/STL/VTK frontend mesh loaders.
 
 ## Frontend acceptance checklist
 - Login redesigned (premium layout): **implemented**
@@ -92,11 +92,39 @@ Services:
 ## Frontend MVP claim matrix (implemented vs partial vs missing vs inferred)
 - Cases page explicit state hierarchy (loading/error/success-empty/success-results): **implemented**
 - Case details core-failure safe shell (no pseudo-known chips on failed fetch): **implemented**
-- Execution mode displayed as authoritative backend field: **missing**
-- Execution mode displayed as inferred from artifacts: **inferred only**
-- Model version shown from case-status API: **missing**
+- Execution mode displayed as authoritative backend field: **implemented**
+- Execution mode displayed as inferred from artifacts: **partial fallback only when status missing**
+- Model version shown from case-status API: **implemented**
 - 2D imaging NIfTI artifact-backed viewer: **implemented**
 - DICOM/OHIF native viewer workflow: **missing**
 - 3D liver mesh viewer (artifact-backed): **implemented**
 - 3D lesion metadata interactions: **partial**
 - Missing-model-weights explicit reason in UI: **missing**
+
+
+## Integration verification artifacts
+- `docs/system-integration-audit.md`
+- `docs/ml-and-viewer-e2e-verification.md`
+- `docs/final-capability-matrix.md`
+
+## Demo env quickstart
+1. Backend env comes from compose defaults, override as needed:
+   - `APP_ML_MODE=mock|real`
+   - `APP_JWT_SECRET`
+2. ML env:
+   - `ML_MODE=mock|real`
+   - `ML_MODELS_CONFIG_PATH` to a real model profile when using `real`
+3. Start services:
+   - `docker compose up --build`
+4. Demo flow:
+   - register/login
+   - create case
+   - upload `.nii/.nii.gz/.dcm/.zip`
+   - run pipeline
+   - inspect timeline, report, artifacts, 2D/3D tabs
+
+## What is real vs mock vs experimental (strict)
+- **Real (when configured):** CT segmentation pipeline stages backed by external model tooling.
+- **Mock:** deterministic artifact/result generation with `ML_MODE=mock`.
+- **Experimental:** MRI path and MedSAM-assisted branches.
+- **Missing:** OHIF DICOM-native frontend flow.
