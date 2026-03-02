@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public class CaseDtos {
     public record CreateCaseRequest(@NotBlank String patientPseudoId, @NotNull Modality modality) {}
@@ -14,7 +15,7 @@ public class CaseDtos {
     public record ArtifactResponse(Long id, String type, String mimeType, String fileName, String downloadUrl) {}
     public record FindingResponse(Long id, String type, String label, Double confidence, Double sizeMm, Double volumeMm3, String locationJson) {}
     public record ReportResponse(String reportText, String reportJson) {}
-    public record StatusResponse(Long caseId, CaseStatus status) {}
+    public record StatusResponse(Long caseId, CaseStatus status, String inferenceStatus, List<Map<String, String>> stageAuditTrail) {}
     public record Viewer3DResponse(Long liverMeshArtifactId, Long lesionMeshArtifactId) {}
     public record MlFinding(String type, String label, Double confidence, Double sizeMm, Double volumeMm3, String locationJson) {}
     public record MlResult(String status, String modelVersion, String metricsJson, String reportText, String reportJson, List<MlFinding> findings,

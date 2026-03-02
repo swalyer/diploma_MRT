@@ -1,13 +1,27 @@
 # Liver MRI/CT Analysis MVP
 
-Production-like MVP for liver MRI/CT decision support:
-- `backend/`: Java Spring Boot REST API
-- `frontend/`: React + TypeScript UI
-- `ml-service/`: FastAPI mock/real-ready inference pipeline
-- `database/`: DB artifacts and sample data
-- `storage/`: local artifact storage
+Incremental production-like MVP for liver CT/MRI decision support. The project keeps module boundaries:
+- `backend/`: Spring Boot API + auth + orchestration
+- `frontend/`: React UI with timeline/tabs/3D controls
+- `ml-service/`: FastAPI inference with `mock` and `real` execution modes
+- `database/`: migrations and example API payloads
+- `storage/`: local artifact storage (object-key based)
 
-## Run
+> ⚠️ Clinical safety: outputs are **decision-support only** and must be verified by a physician.
+
+## Supported modalities
+- **CT**: primary real pipeline (DICOM/NIfTI → liver segmentation → lesion segmentation when weights exist).
+- **MRI**: experimental. Liver mask path is available; lesion analysis may be unavailable until MRI lesion weights are configured.
+
+## Datasets referenced for benchmarking/dev scripts
+- 3D-IRCADb-01 (CT end-to-end smoke tests)
+- MSD Task03 Liver (CT liver/tumor)
+- CHAOS (MRI/CT organ segmentation)
+- LiverHccSeg (MRI liver/HCC)
+- OpenSwissHCC (MRI HCC validation)
+- Optional: CT-ORG, HCC-TACE-SEG, TCGA-LIHC
+
+## Run locally (Docker)
 ```bash
 docker compose up --build
 ```
@@ -17,18 +31,41 @@ Services:
 - Backend Swagger: http://localhost:8080/swagger-ui/index.html
 - ML service docs: http://localhost:8000/docs
 
-## Default demo user (dev only)
-- email: `admin@demo.local`
-- password: `Admin123!`
+## ML execution modes
+- `ML_MODE=mock` — deterministic mock artifacts.
+- `ML_MODE=real` — adapter-driven real path:
+  - TotalSegmentator adapter for liver masks.
+  - nnUNet v2 adapter for lesion masks (if weights configured).
+  - MedSAM adapter placeholder for optional interactive fallback.
 
-## Security profile
-- JWT required for all business endpoints under `/api/**` except `/api/auth/**`
-- Storage internals are hidden from external API; use artifact IDs and download endpoint
-- Ownership checks are enforced for case and artifact access
-- Current profile is for development/demo and must be hardened for production deployment
+### Config examples
+- `ml-service/config/models.mock.example.yml`
+- `ml-service/config/models.real.example.yml`
 
-## API examples
-Examples for case with lesion and without lesion are in `database/api-examples.json`.
+### Model and dataset scripts
+```bash
+./ml-service/scripts/download_models.sh
+./ml-service/scripts/prepare_datasets.sh
+```
 
-## Notes
-System is decision-support only and requires physician verification.
+## Inference flow
+1. Upload CT/MRI case artifact (object key stored server-side).
+2. Backend sends ML request with `caseId`, `modality`, `executionMode`, and `fileReferences`.
+3. ML returns artifact keys for enhanced volume, masks, meshes + findings + metrics.
+4. Backend persists results and status audit trail (started/request/completed/failed).
+5. Frontend displays timeline, artifacts, report, mock/real badge, and 3D controls.
+
+## Security
+- JWT required for all business endpoints (`/api/auth/**` is public).
+- Ownership checks enforced for case/artifact/report/findings/status endpoints.
+- Public DTOs expose artifact IDs + download URLs, not local filesystem paths.
+
+## Tests
+- ML mock pipeline test.
+- ML CT real pipeline smoke test with tiny synthetic NIfTI fixture.
+- Backend process/result flow test for persistence.
+
+## Known limitations
+- Real inference depends on locally installed TotalSegmentator/nnUNet and weights.
+- MRI lesion path is experimental and may return liver-only results.
+- 2D diagnostic viewer integration currently provides an OHIF/Cornerstone migration path placeholder.

@@ -1,0 +1,9 @@
+totalsegmentator:
+  name: TotalSegmentator
+  enabled: false
+nnunetv2:
+  name: nnUNet v2
+  enabled: false
+medsam:
+  name: MedSAM
+  enabled: false

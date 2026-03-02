@@ -6,6 +6,7 @@ import com.diploma.mrt.service.AuditService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class AuditServiceImpl implements AuditService {
@@ -24,5 +25,10 @@ public class AuditServiceImpl implements AuditService {
         event.setDetailsJson(detailsJson);
         event.setCreatedAt(Instant.now());
         auditEventRepository.save(event);
+    }
+
+    @Override
+    public List<AuditEvent> listByCase(Long caseId) {
+        return auditEventRepository.findByCaseIdOrderByCreatedAtAsc(caseId);
     }
 }

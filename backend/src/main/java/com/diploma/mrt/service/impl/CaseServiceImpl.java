@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class CaseServiceImpl implements CaseService {
@@ -101,18 +103,24 @@ public class CaseServiceImpl implements CaseService {
         InferenceRun run = new InferenceRun();
         run.setCaseEntity(caseEntity);
         run.setStatus(InferenceStatus.STARTED);
-        run.setModelVersion("mock-v1");
+        run.setModelVersion("pipeline");
+        auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_STARTED", "{}");
         run.setStartedAt(Instant.now());
         inferenceRunRepository.save(run);
         try {
             Artifact original = artifactRepository.findByCaseEntityId(id).stream().filter(a -> "ORIGINAL_INPUT".equals(a.getType())).findFirst().orElseThrow(() -> new NotFoundException("Input missing"));
+            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_REQUEST_SENT", "{}");
             CaseDtos.MlResult result = mlClient.infer(id, caseEntity.getModality().name(), original.getFilePath());
             persistMlResult(caseEntity, result);
+            run.setModelVersion(result.modelVersion());
+            run.setMetricsJson(result.metricsJson());
             run.setStatus(InferenceStatus.COMPLETED);
+            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_COMPLETED", "{}");
             caseEntity.setStatus(CaseStatus.COMPLETED);
         } catch (Exception exception) {
             run.setStatus(InferenceStatus.FAILED);
             caseEntity.setStatus(CaseStatus.FAILED);
+            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_FAILED", "{\"error\":\"" + exception.getClass().getSimpleName() + "\"}");
         }
         run.setFinishedAt(Instant.now());
         caseEntity.setUpdatedAt(Instant.now());
@@ -187,7 +195,14 @@ public class CaseServiceImpl implements CaseService {
     @Override
     public CaseDtos.StatusResponse status(String userEmail, Long id) {
         CaseEntity caseEntity = findOwnedCase(userEmail, id);
-        return new CaseDtos.StatusResponse(id, caseEntity.getStatus());
+        InferenceRun run = inferenceRunRepository.findByCaseEntityId(id).stream().findFirst().orElse(null);
+        List<Map<String, String>> stages = auditService.listByCase(id).stream().map(a -> {
+            Map<String, String> row = new LinkedHashMap<>();
+            row.put("action", a.getAction());
+            row.put("at", a.getCreatedAt().toString());
+            return row;
+        }).toList();
+        return new CaseDtos.StatusResponse(id, caseEntity.getStatus(), run == null ? "N/A" : run.getStatus().name(), stages);
     }
 
     @Override
