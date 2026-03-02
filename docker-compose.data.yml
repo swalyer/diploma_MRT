@@ -1,0 +1,93 @@
+version: '3.9'
+services:
+  postgres-primary:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${APP_DB_PRIMARY_NAME:-mrt}
+      POSTGRES_USER: ${APP_DB_PRIMARY_USERNAME:-mrt}
+      POSTGRES_PASSWORD: ${APP_DB_PRIMARY_PASSWORD:-mrt}
+      POSTGRES_REPL_PASSWORD: replicator_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_primary_data:/var/lib/postgresql/data
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/20-seed.sql:ro
+      - ./deploy/postgres/init-primary-replication.sh:/docker-entrypoint-initdb.d/30-init-replication.sh:ro
+      - ./deploy/postgres/postgresql-primary.conf:/etc/postgresql/postgresql.conf:ro
+      - ./deploy/postgres/pg_hba-primary.conf:/etc/postgresql/pg_hba.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+    networks:
+      - data_net
+      - replication_net
+      - obs_net
+
+  postgres-replica:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      - postgres-primary
+    environment:
+      POSTGRES_USER: ${APP_DB_REPLICA_USERNAME:-mrt}
+      POSTGRES_PASSWORD: ${APP_DB_REPLICA_PASSWORD:-mrt}
+      PGDATA: /var/lib/postgresql/data
+      PRIMARY_HOST: postgres-primary
+      REPLICATION_USER: replicator
+      REPLICATION_PASSWORD: replicator_pass
+    ports:
+      - "5433:5432"
+    entrypoint: ["/bin/bash", "/docker-entrypoint-initdb.d/replica-entrypoint.sh"]
+    volumes:
+      - pg_replica_data:/var/lib/postgresql/data
+      - ./deploy/postgres/replica-entrypoint.sh:/docker-entrypoint-initdb.d/replica-entrypoint.sh:ro
+    networks:
+      - data_net
+      - replication_net
+      - obs_net
+
+  audit-postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${APP_AUDIT_DB_NAME:-mrt_audit}
+      POSTGRES_USER: ${APP_AUDIT_DB_USERNAME:-mrt_audit}
+      POSTGRES_PASSWORD: ${APP_AUDIT_DB_PASSWORD:-mrt_audit}
+    ports:
+      - "5434:5432"
+    volumes:
+      - audit_pg_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-audit-db.sql:/docker-entrypoint-initdb.d/10-init-audit.sql:ro
+    networks:
+      - data_net
+      - replication_net
+      - obs_net
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${APP_STORAGE_ACCESS_KEY:-minio}
+      MINIO_ROOT_PASSWORD: ${APP_STORAGE_SECRET_KEY:-minio123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - data_net
+
+networks:
+  data_net:
+    driver: bridge
+  replication_net:
+    driver: bridge
+  obs_net:
+    external: true
+    name: obs_net
+
+volumes:
+  pg_primary_data:
+  pg_replica_data:
+  audit_pg_data:
+  minio_data:

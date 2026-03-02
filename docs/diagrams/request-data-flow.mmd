@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant U as User Browser
+    participant RP as Reverse Proxy
+    participant BE as Backend
+    participant ML as ML Service
+    participant P as Postgres Primary
+    participant A as Audit Postgres
+    participant S as MinIO/Storage
+
+    U->>RP: POST /api/cases/{id}/run
+    RP->>BE: Forward API request
+    BE->>P: Write inference_run status=RUNNING
+    BE->>A: Insert audit_event(INFERENCE_STARTED)
+    BE->>ML: POST /infer {artifact references}
+    ML->>S: Read input artifacts
+    ML-->>BE: Inference result metadata
+    BE->>P: Persist findings/reports/artifacts metadata
+    BE->>A: Insert audit_event(INFERENCE_COMPLETED)
+    BE-->>RP: 200 response
+    RP-->>U: API response

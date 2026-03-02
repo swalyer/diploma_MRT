@@ -1,0 +1,79 @@
+version: '3.9'
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-replace-with-long-random-secret-at-least-32-bytes}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-https://your-edge-host}
+      APP_ML_MODE: ${APP_ML_MODE:-mock}
+      APP_ML_URL: http://ml-service:8000
+
+      APP_DB_PRIMARY_HOST: ${APP_DB_PRIMARY_HOST:-data.internal}
+      APP_DB_PRIMARY_PORT: ${APP_DB_PRIMARY_PORT:-5432}
+      APP_DB_PRIMARY_NAME: ${APP_DB_PRIMARY_NAME:-mrt}
+      APP_DB_PRIMARY_USERNAME: ${APP_DB_PRIMARY_USERNAME:-mrt}
+      APP_DB_PRIMARY_PASSWORD: ${APP_DB_PRIMARY_PASSWORD:-mrt}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${APP_DB_PRIMARY_HOST:-data.internal}:${APP_DB_PRIMARY_PORT:-5432}/${APP_DB_PRIMARY_NAME:-mrt}
+      SPRING_DATASOURCE_USERNAME: ${APP_DB_PRIMARY_USERNAME:-mrt}
+      SPRING_DATASOURCE_PASSWORD: ${APP_DB_PRIMARY_PASSWORD:-mrt}
+
+      APP_READ_REPLICA_ENABLED: ${APP_READ_REPLICA_ENABLED:-true}
+      APP_DB_REPLICA_HOST: ${APP_DB_REPLICA_HOST:-data.internal}
+      APP_DB_REPLICA_PORT: ${APP_DB_REPLICA_PORT:-5433}
+      APP_DB_REPLICA_NAME: ${APP_DB_REPLICA_NAME:-mrt}
+      APP_DB_REPLICA_USERNAME: ${APP_DB_REPLICA_USERNAME:-mrt}
+      APP_DB_REPLICA_PASSWORD: ${APP_DB_REPLICA_PASSWORD:-mrt}
+      APP_READ_DATASOURCE_URL: jdbc:postgresql://${APP_DB_REPLICA_HOST:-data.internal}:${APP_DB_REPLICA_PORT:-5433}/${APP_DB_REPLICA_NAME:-mrt}
+      APP_READ_DATASOURCE_USERNAME: ${APP_DB_REPLICA_USERNAME:-mrt}
+      APP_READ_DATASOURCE_PASSWORD: ${APP_DB_REPLICA_PASSWORD:-mrt}
+
+      APP_AUDIT_ENABLED: ${APP_AUDIT_ENABLED:-true}
+      APP_AUDIT_DB_HOST: ${APP_AUDIT_DB_HOST:-data.internal}
+      APP_AUDIT_DB_PORT: ${APP_AUDIT_DB_PORT:-5434}
+      APP_AUDIT_DB_NAME: ${APP_AUDIT_DB_NAME:-mrt_audit}
+      APP_AUDIT_DB_USERNAME: ${APP_AUDIT_DB_USERNAME:-mrt_audit}
+      APP_AUDIT_DB_PASSWORD: ${APP_AUDIT_DB_PASSWORD:-mrt_audit}
+      APP_AUDIT_DATASOURCE_URL: jdbc:postgresql://${APP_AUDIT_DB_HOST:-data.internal}:${APP_AUDIT_DB_PORT:-5434}/${APP_AUDIT_DB_NAME:-mrt_audit}
+      APP_AUDIT_DATASOURCE_USERNAME: ${APP_AUDIT_DB_USERNAME:-mrt_audit}
+      APP_AUDIT_DATASOURCE_PASSWORD: ${APP_AUDIT_DB_PASSWORD:-mrt_audit}
+
+      APP_STORAGE_ROOT: /data/storage
+      APP_STORAGE_ENDPOINT: ${APP_STORAGE_ENDPOINT:-http://data.internal:9000}
+      APP_STORAGE_ACCESS_KEY: ${APP_STORAGE_ACCESS_KEY:-minio}
+      APP_STORAGE_SECRET_KEY: ${APP_STORAGE_SECRET_KEY:-minio123}
+      APP_STORAGE_BUCKET: ${APP_STORAGE_BUCKET:-mrt-artifacts}
+
+      APP_OBSERVABILITY_ENABLED: ${APP_OBSERVABILITY_ENABLED:-true}
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+    volumes:
+      - ./storage:/data/storage
+    networks:
+      - app_net
+      - data_net
+      - obs_net
+
+  ml-service:
+    build: ./ml-service
+    restart: unless-stopped
+    environment:
+      ML_MODE: ${ML_MODE:-mock}
+      ML_ARTIFACTS_ROOT: /data/storage
+      ML_MODELS_CONFIG_PATH: /app/config/models.real.example.yml
+    volumes:
+      - ./storage:/data/storage
+    networks:
+      - app_net
+      - data_net
+      - obs_net
+
+networks:
+  app_net:
+    external: true
+    name: app_net
+  data_net:
+    external: true
+    name: data_net
+  obs_net:
+    external: true
+    name: obs_net

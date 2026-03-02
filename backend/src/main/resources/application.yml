@@ -11,10 +11,34 @@ spring:
         format_sql: true
   flyway:
     enabled: true
+
+logging:
+  level:
+    root: ${APP_LOG_LEVEL:INFO}
+
 app:
   jwt-secret: ${APP_JWT_SECRET:dev-secret}
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost}
   ml-url: ${APP_ML_URL:http://localhost:8000}
   ml-mode: ${APP_ML_MODE:mock}
   storage-root: ${APP_STORAGE_ROOT:./storage}
+  storage-endpoint: ${APP_STORAGE_ENDPOINT:http://minio:9000}
+  storage-access-key: ${APP_STORAGE_ACCESS_KEY:minio}
+  storage-secret-key: ${APP_STORAGE_SECRET_KEY:minio123}
+  storage-bucket: ${APP_STORAGE_BUCKET:mrt-artifacts}
+  read-replica-enabled: ${APP_READ_REPLICA_ENABLED:false}
+  read-datasource:
+    url: ${APP_READ_DATASOURCE_URL:}
+    username: ${APP_READ_DATASOURCE_USERNAME:}
+    password: ${APP_READ_DATASOURCE_PASSWORD:}
+  audit:
+    enabled: ${APP_AUDIT_ENABLED:false}
+    datasource:
+      url: ${APP_AUDIT_DATASOURCE_URL:jdbc:postgresql://localhost:5433/mrt_audit}
+      username: ${APP_AUDIT_DATASOURCE_USERNAME:mrt_audit}
+      password: ${APP_AUDIT_DATASOURCE_PASSWORD:mrt_audit}
+  observability:
+    enabled: ${APP_OBSERVABILITY_ENABLED:false}
+
 server:
   port: 8080
