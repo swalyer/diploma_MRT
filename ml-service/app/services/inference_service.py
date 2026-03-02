@@ -1,5 +1,4 @@
 import json
-import os
 from app.core.config import settings
 from app.pipeline.stages import PreprocessStage, EnhancementStage, LiverSegmentationStage, LesionDetectionStage, MeshGenerationStage
 from app.schemas.infer import InferRequest, InferResponse, Finding
@@ -13,12 +12,12 @@ class InferenceService:
         self.mesh_gen = MeshGenerationStage()
 
     def infer(self, request: InferRequest) -> InferResponse:
-        base = self.preprocess.run(request.fileReferences["input"])
+        input_object_key = request.fileReferences["inputObjectKey"]
+        base = self.preprocess.run(input_object_key)
         enhanced = self.enhancement.run(base)
         liver_mask = self.liver_seg.run(base)
         lesion_mask = self.lesion_det.run(base)
         liver_mesh, lesion_mesh = self.mesh_gen.run(base)
-        os.makedirs(settings.artifacts_root, exist_ok=True)
         suspicious = request.caseId % 2 == 1
         findings = []
         if suspicious:
@@ -27,4 +26,4 @@ class InferenceService:
         report_json = json.dumps({"classification": "suspicious lesion detected" if suspicious else "no suspicious lesion", "confidence": 0.91 if suspicious else 0.87})
         metrics = json.dumps({"mode": settings.mode, "steps": ["preprocess", "enhancement", "liver_segmentation", "lesion_detection", "classification", "mesh_generation", "report"]})
         return InferResponse(status="COMPLETED", modelVersion="mock-v1" if settings.mode == "mock" else "real-ready-v1", metricsJson=metrics, reportText=report_text, reportJson=report_json, findings=findings,
-            enhancedPath=enhanced, liverMaskPath=liver_mask, lesionMaskPath=lesion_mask, liverMeshPath=liver_mesh, lesionMeshPath=lesion_mesh)
+            enhancedObjectKey=enhanced, liverMaskObjectKey=liver_mask, lesionMaskObjectKey=lesion_mask, liverMeshObjectKey=liver_mesh, lesionMeshObjectKey=lesion_mesh)

@@ -16,10 +16,10 @@ public class MlClient {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
     }
 
-    public CaseDtos.MlResult infer(Long caseId, String modality, String inputPath) {
+    public CaseDtos.MlResult infer(Long caseId, String modality, String inputObjectKey) {
         return restClient.post().uri("/infer/case")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("caseId", caseId, "modality", modality, "fileReferences", Map.of("input", inputPath)))
+                .body(Map.of("caseId", caseId, "modality", modality, "fileReferences", Map.of("inputObjectKey", inputObjectKey)))
                 .retrieve()
                 .body(CaseDtos.MlResult.class);
     }

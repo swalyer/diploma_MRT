@@ -12,6 +12,15 @@
         "volumeMm3": 4812.6,
         "locationJson": "{\"segment\":\"S6\"}"
       }
+    ],
+    "artifacts": [
+      {
+        "id": 501,
+        "type": "LIVER_MESH",
+        "mimeType": "model/gltf-binary",
+        "fileName": "study01.liver.glb",
+        "downloadUrl": "/api/files/501/download"
+      }
     ]
   },
   "withoutLesion": {

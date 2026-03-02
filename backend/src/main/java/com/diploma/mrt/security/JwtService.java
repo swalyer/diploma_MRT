@@ -1,5 +1,6 @@
 package com.diploma.mrt.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,5 +20,11 @@ public class JwtService {
         Date now = new Date();
         Date exp = new Date(now.getTime() + 86400000L);
         return Jwts.builder().subject(subject).issuedAt(now).expiration(exp).signWith(key).compact();
+    }
+
+    public String extractSubject(String token) {
+        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        return claims.getSubject();
     }
 }

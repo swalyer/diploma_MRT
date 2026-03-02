@@ -21,8 +21,8 @@ class InferResponse(BaseModel):
     reportText: str
     reportJson: str
     findings: List[Finding]
-    enhancedPath: str
-    liverMaskPath: str
-    lesionMaskPath: str
-    liverMeshPath: str
-    lesionMeshPath: str
+    enhancedObjectKey: str
+    liverMaskObjectKey: str
+    lesionMaskObjectKey: str
+    liverMeshObjectKey: str
+    lesionMeshObjectKey: str

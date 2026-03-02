@@ -7,15 +7,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface CaseService {
-    CaseDtos.CaseResponse create(CaseDtos.CreateCaseRequest request);
-    List<CaseDtos.CaseResponse> list(CaseStatus status);
-    CaseDtos.CaseResponse get(Long id);
-    void upload(Long id, MultipartFile file);
-    void process(Long id);
-    void delete(Long id);
-    List<CaseDtos.ArtifactResponse> artifacts(Long id);
-    List<CaseDtos.FindingResponse> findings(Long id);
-    CaseDtos.ReportResponse report(Long id);
-    CaseDtos.StatusResponse status(Long id);
-    CaseDtos.Viewer3DResponse viewer3d(Long id);
+    CaseDtos.CaseResponse create(String userEmail, CaseDtos.CreateCaseRequest request);
+    List<CaseDtos.CaseResponse> list(String userEmail, CaseStatus status);
+    CaseDtos.CaseResponse get(String userEmail, Long id);
+    CaseDtos.ArtifactResponse upload(String userEmail, Long id, MultipartFile file);
+    void process(String userEmail, Long id);
+    void delete(String userEmail, Long id);
+    List<CaseDtos.ArtifactResponse> artifacts(String userEmail, Long id);
+    List<CaseDtos.FindingResponse> findings(String userEmail, Long id);
+    CaseDtos.ReportResponse report(String userEmail, Long id);
+    CaseDtos.StatusResponse status(String userEmail, Long id);
+    CaseDtos.Viewer3DResponse viewer3d(String userEmail, Long id);
 }

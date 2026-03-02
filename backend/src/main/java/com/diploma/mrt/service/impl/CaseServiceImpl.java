@@ -3,6 +3,7 @@ package com.diploma.mrt.service.impl;
 import com.diploma.mrt.client.MlClient;
 import com.diploma.mrt.dto.CaseDtos;
 import com.diploma.mrt.entity.*;
+import com.diploma.mrt.exception.AccessDeniedException;
 import com.diploma.mrt.exception.NotFoundException;
 import com.diploma.mrt.repository.*;
 import com.diploma.mrt.service.AuditService;
@@ -40,8 +41,9 @@ public class CaseServiceImpl implements CaseService {
         this.auditService = auditService;
     }
 
-    public CaseDtos.CaseResponse create(CaseDtos.CreateCaseRequest request) {
-        User user = userRepository.findByEmail("admin@demo.local").orElseThrow(() -> new NotFoundException("User not found"));
+    @Override
+    public CaseDtos.CaseResponse create(String userEmail, CaseDtos.CreateCaseRequest request) {
+        User user = findUser(userEmail);
         CaseEntity caseEntity = new CaseEntity();
         caseEntity.setPatientPseudoId(request.patientPseudoId());
         caseEntity.setModality(request.modality());
@@ -54,40 +56,47 @@ public class CaseServiceImpl implements CaseService {
         return map(saved);
     }
 
-    public List<CaseDtos.CaseResponse> list(CaseStatus status) {
+    @Override
+    public List<CaseDtos.CaseResponse> list(String userEmail, CaseStatus status) {
+        User user = findUser(userEmail);
         List<CaseEntity> cases = status == null ? caseRepository.findAll() : caseRepository.findByStatus(status);
-        return cases.stream().map(this::map).toList();
+        return cases.stream().filter(c -> c.getCreatedBy().getId().equals(user.getId())).map(this::map).toList();
     }
 
-    public CaseDtos.CaseResponse get(Long id) {
-        return map(findCase(id));
+    @Override
+    public CaseDtos.CaseResponse get(String userEmail, Long id) {
+        return map(findOwnedCase(userEmail, id));
     }
 
+    @Override
     @Transactional
-    public void upload(Long id, MultipartFile file) {
-        CaseEntity caseEntity = findCase(id);
+    public CaseDtos.ArtifactResponse upload(String userEmail, Long id, MultipartFile file) {
+        CaseEntity caseEntity = findOwnedCase(userEmail, id);
         validateFile(file.getOriginalFilename());
-        String path = storageService.saveCaseFile(id, file);
+        String objectKey = storageService.saveCaseFile(id, file);
         Artifact artifact = new Artifact();
         artifact.setCaseEntity(caseEntity);
         artifact.setType("ORIGINAL_INPUT");
-        artifact.setFilePath(path);
+        artifact.setFilePath(objectKey);
         artifact.setMimeType(file.getContentType() == null ? "application/octet-stream" : file.getContentType());
         artifact.setCreatedAt(Instant.now());
-        artifactRepository.save(artifact);
+        Artifact saved = artifactRepository.save(artifact);
         caseEntity.setStatus(CaseStatus.UPLOADED);
         caseEntity.setUpdatedAt(Instant.now());
         auditService.log(caseEntity.getCreatedBy().getId(), id, "CASE_UPLOADED", "{}");
+        return toArtifactResponse(saved);
     }
 
-    public void process(Long id) {
+    @Override
+    public void process(String userEmail, Long id) {
+        findOwnedCase(userEmail, id);
         processAsync(id);
     }
 
     @Async
     @Transactional
     public void processAsync(Long id) {
-        CaseEntity caseEntity = findCase(id);
+        CaseEntity caseEntity = caseRepository.findById(id).orElseThrow(() -> new NotFoundException("Case not found"));
         caseEntity.setStatus(CaseStatus.PROCESSING);
         InferenceRun run = new InferenceRun();
         run.setCaseEntity(caseEntity);
@@ -96,7 +105,7 @@ public class CaseServiceImpl implements CaseService {
         run.setStartedAt(Instant.now());
         inferenceRunRepository.save(run);
         try {
-            Artifact original = artifactRepository.findByCaseEntityId(id).stream().findFirst().orElseThrow(() -> new NotFoundException("Input missing"));
+            Artifact original = artifactRepository.findByCaseEntityId(id).stream().filter(a -> "ORIGINAL_INPUT".equals(a.getType())).findFirst().orElseThrow(() -> new NotFoundException("Input missing"));
             CaseDtos.MlResult result = mlClient.infer(id, caseEntity.getModality().name(), original.getFilePath());
             persistMlResult(caseEntity, result);
             run.setStatus(InferenceStatus.COMPLETED);
@@ -110,11 +119,11 @@ public class CaseServiceImpl implements CaseService {
     }
 
     private void persistMlResult(CaseEntity caseEntity, CaseDtos.MlResult result) {
-        addArtifact(caseEntity, "ENHANCED", result.enhancedPath(), "application/octet-stream");
-        addArtifact(caseEntity, "LIVER_MASK", result.liverMaskPath(), "application/octet-stream");
-        addArtifact(caseEntity, "LESION_MASK", result.lesionMaskPath(), "application/octet-stream");
-        addArtifact(caseEntity, "LIVER_MESH", result.liverMeshPath(), "model/gltf+json");
-        addArtifact(caseEntity, "LESION_MESH", result.lesionMeshPath(), "model/gltf+json");
+        addArtifact(caseEntity, "ENHANCED", result.enhancedObjectKey(), "application/octet-stream");
+        addArtifact(caseEntity, "LIVER_MASK", result.liverMaskObjectKey(), "application/octet-stream");
+        addArtifact(caseEntity, "LESION_MASK", result.lesionMaskObjectKey(), "application/octet-stream");
+        addArtifact(caseEntity, "LIVER_MESH", result.liverMeshObjectKey(), "model/gltf-binary");
+        addArtifact(caseEntity, "LESION_MESH", result.lesionMeshObjectKey(), "model/gltf-binary");
         for (CaseDtos.MlFinding f : result.findings()) {
             Finding finding = new Finding();
             finding.setCaseEntity(caseEntity);
@@ -134,11 +143,11 @@ public class CaseServiceImpl implements CaseService {
         reportRepository.save(report);
     }
 
-    private void addArtifact(CaseEntity caseEntity, String type, String path, String mimeType) {
+    private void addArtifact(CaseEntity caseEntity, String type, String objectKey, String mimeType) {
         Artifact artifact = new Artifact();
         artifact.setCaseEntity(caseEntity);
         artifact.setType(type);
-        artifact.setFilePath(path);
+        artifact.setFilePath(objectKey);
         artifact.setMimeType(mimeType);
         artifact.setCreatedAt(Instant.now());
         artifactRepository.save(artifact);
@@ -150,37 +159,63 @@ public class CaseServiceImpl implements CaseService {
         }
     }
 
-    public void delete(Long id) {
-        caseRepository.deleteById(id);
+    @Override
+    public void delete(String userEmail, Long id) {
+        CaseEntity caseEntity = findOwnedCase(userEmail, id);
+        caseRepository.delete(caseEntity);
     }
 
-    public List<CaseDtos.ArtifactResponse> artifacts(Long id) {
-        return artifactRepository.findByCaseEntityId(id).stream().map(a -> new CaseDtos.ArtifactResponse(a.getId(), a.getType(), a.getFilePath(), a.getMimeType())).toList();
+    @Override
+    public List<CaseDtos.ArtifactResponse> artifacts(String userEmail, Long id) {
+        findOwnedCase(userEmail, id);
+        return artifactRepository.findByCaseEntityId(id).stream().map(this::toArtifactResponse).toList();
     }
 
-    public List<CaseDtos.FindingResponse> findings(Long id) {
+    @Override
+    public List<CaseDtos.FindingResponse> findings(String userEmail, Long id) {
+        findOwnedCase(userEmail, id);
         return findingRepository.findByCaseEntityId(id).stream().map(f -> new CaseDtos.FindingResponse(f.getId(), f.getType(), f.getLabel(), f.getConfidence(), f.getSizeMm(), f.getVolumeMm3(), f.getLocationJson())).toList();
     }
 
-    public CaseDtos.ReportResponse report(Long id) {
+    @Override
+    public CaseDtos.ReportResponse report(String userEmail, Long id) {
+        findOwnedCase(userEmail, id);
         Report report = reportRepository.findByCaseEntityId(id).orElseThrow(() -> new NotFoundException("Report not found"));
         return new CaseDtos.ReportResponse(report.getReportText(), report.getReportJson());
     }
 
-    public CaseDtos.StatusResponse status(Long id) {
-        CaseEntity caseEntity = findCase(id);
+    @Override
+    public CaseDtos.StatusResponse status(String userEmail, Long id) {
+        CaseEntity caseEntity = findOwnedCase(userEmail, id);
         return new CaseDtos.StatusResponse(id, caseEntity.getStatus());
     }
 
-    public CaseDtos.Viewer3DResponse viewer3d(Long id) {
+    @Override
+    public CaseDtos.Viewer3DResponse viewer3d(String userEmail, Long id) {
+        findOwnedCase(userEmail, id);
         List<Artifact> artifacts = artifactRepository.findByCaseEntityId(id);
-        String liver = artifacts.stream().filter(a -> "LIVER_MESH".equals(a.getType())).map(Artifact::getFilePath).findFirst().orElse(null);
-        String lesion = artifacts.stream().filter(a -> "LESION_MESH".equals(a.getType())).map(Artifact::getFilePath).findFirst().orElse(null);
+        Long liver = artifacts.stream().filter(a -> "LIVER_MESH".equals(a.getType())).map(Artifact::getId).findFirst().orElse(null);
+        Long lesion = artifacts.stream().filter(a -> "LESION_MESH".equals(a.getType())).map(Artifact::getId).findFirst().orElse(null);
         return new CaseDtos.Viewer3DResponse(liver, lesion);
     }
 
-    private CaseEntity findCase(Long id) {
-        return caseRepository.findById(id).orElseThrow(() -> new NotFoundException("Case not found"));
+    private CaseDtos.ArtifactResponse toArtifactResponse(Artifact artifact) {
+        String objectKey = artifact.getFilePath();
+        String[] parts = objectKey.split("/");
+        String fileName = parts[parts.length - 1];
+        return new CaseDtos.ArtifactResponse(artifact.getId(), artifact.getType(), artifact.getMimeType(), fileName, "/api/files/" + artifact.getId() + "/download");
+    }
+
+    private User findUser(String email) {
+        return userRepository.findByEmail(email).orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    private CaseEntity findOwnedCase(String userEmail, Long id) {
+        CaseEntity caseEntity = caseRepository.findById(id).orElseThrow(() -> new NotFoundException("Case not found"));
+        if (!caseEntity.getCreatedBy().getEmail().equals(userEmail)) {
+            throw new AccessDeniedException("Access denied");
+        }
+        return caseEntity;
     }
 
     private CaseDtos.CaseResponse map(CaseEntity caseEntity) {
