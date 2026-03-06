@@ -1,7 +1,6 @@
 package com.diploma.mrt.service.impl;
 
 import com.diploma.mrt.entity.AuditEvent;
-import com.diploma.mrt.repository.AuditEventRepository;
 import com.diploma.mrt.service.AuditService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -15,16 +14,13 @@ import java.util.List;
 
 @Service
 public class AuditServiceImpl implements AuditService {
-    private final AuditEventRepository auditEventRepository;
     private final JdbcTemplate auditJdbcTemplate;
     private final boolean auditDbEnabled;
 
     public AuditServiceImpl(
-            AuditEventRepository auditEventRepository,
             @Qualifier("auditJdbcTemplate") ObjectProvider<JdbcTemplate> auditJdbcTemplateProvider,
             @Value("${app.audit.enabled:false}") boolean auditDbEnabled
     ) {
-        this.auditEventRepository = auditEventRepository;
         this.auditJdbcTemplate = auditJdbcTemplateProvider.getIfAvailable();
         this.auditDbEnabled = auditDbEnabled && this.auditJdbcTemplate != null;
     }
@@ -43,14 +39,6 @@ public class AuditServiceImpl implements AuditService {
             );
             return;
         }
-
-        AuditEvent event = new AuditEvent();
-        event.setUserId(userId);
-        event.setCaseId(caseId);
-        event.setAction(action);
-        event.setDetailsJson(detailsJson);
-        event.setCreatedAt(createdAt);
-        auditEventRepository.save(event);
     }
 
     @Override
@@ -71,6 +59,6 @@ public class AuditServiceImpl implements AuditService {
                     caseId
             );
         }
-        return auditEventRepository.findByCaseIdOrderByCreatedAtAsc(caseId);
+        return List.of();
     }
 }

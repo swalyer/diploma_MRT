@@ -80,6 +80,14 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
   docker compose down -v
   docker compose up --build -d
   ```
+- Verify which DB Hibernate/JPA validates against (Hikari pool URL):
+  ```bash
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI=DEBUG docker compose up -d --force-recreate backend
+  docker compose logs backend --tail=200 | rg "jdbcUrl="
+  ```
+  The `jdbcUrl=...` line for the primary pool must point to `postgres-primary`/`mrt`.
+- Schema mismatch (`analysis_case` missing) even when Flyway ran: ensure Hibernate default schema is `public` (or unset) and not overridden by `hibernate.default_schema` / `spring.jpa.properties.hibernate.default_schema` / `@Table(schema=...)`.
+- Multi-datasource wiring guardrails: primary JPA must use `spring.datasource` (`@Primary` `dataSource` bean), while `audit` and `read replica` datasources stay conditional (`app.audit.enabled`, `app.read-replica-enabled`) and non-primary so they cannot become default for JPA.
 
 ## ML execution modes
 - `ML_MODE=mock` — deterministic mock artifacts.
