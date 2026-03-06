@@ -9,8 +9,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        default_schema: public
   flyway:
     enabled: true
+    default-schema: public
+    schemas: public
     url: ${SPRING_FLYWAY_URL:jdbc:postgresql://localhost:5432/mrt}
     user: ${SPRING_FLYWAY_USER:mrt}
     password: ${SPRING_FLYWAY_PASSWORD:mrt}
