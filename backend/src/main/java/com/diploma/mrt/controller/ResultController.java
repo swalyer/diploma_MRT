@@ -17,22 +17,22 @@ public class ResultController {
     }
 
     @GetMapping("/artifacts")
-    public List<CaseDtos.ArtifactResponse> artifacts(Authentication authentication, @PathVariable Long id) {
+    public List<CaseDtos.ArtifactResponse> artifacts(Authentication authentication, @PathVariable("id") Long id) {
         return caseService.artifacts(authentication.getName(), id);
     }
 
     @GetMapping("/findings")
-    public List<CaseDtos.FindingResponse> findings(Authentication authentication, @PathVariable Long id) {
+    public List<CaseDtos.FindingResponse> findings(Authentication authentication, @PathVariable("id") Long id) {
         return caseService.findings(authentication.getName(), id);
     }
 
     @GetMapping("/report")
-    public CaseDtos.ReportResponse report(Authentication authentication, @PathVariable Long id) {
+    public CaseDtos.ReportResponse report(Authentication authentication, @PathVariable("id") Long id) {
         return caseService.report(authentication.getName(), id);
     }
 
     @GetMapping("/viewer/3d")
-    public CaseDtos.Viewer3DResponse viewer(Authentication authentication, @PathVariable Long id) {
+    public CaseDtos.Viewer3DResponse viewer(Authentication authentication, @PathVariable("id") Long id) {
         return caseService.viewer3d(authentication.getName(), id);
     }
 }
