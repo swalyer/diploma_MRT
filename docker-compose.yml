@@ -42,7 +42,7 @@ services:
       SPRING_FLYWAY_USER: ${APP_DB_PRIMARY_USERNAME:-mrt}
       SPRING_FLYWAY_PASSWORD: ${APP_DB_PRIMARY_PASSWORD:-mrt}
 
-      APP_READ_REPLICA_ENABLED: ${APP_READ_REPLICA_ENABLED:-true}
+      APP_READ_REPLICA_ENABLED: ${APP_READ_REPLICA_ENABLED:-false}
       APP_DB_REPLICA_HOST: ${APP_DB_REPLICA_HOST:-postgres-replica}
       APP_DB_REPLICA_PORT: ${APP_DB_REPLICA_PORT:-5432}
       APP_DB_REPLICA_NAME: ${APP_DB_REPLICA_NAME:-mrt}
@@ -70,13 +70,10 @@ services:
 
       APP_OBSERVABILITY_ENABLED: ${APP_OBSERVABILITY_ENABLED:-true}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+      LOGGING_LEVEL_COM_ZAXXER_HIKARI: ${LOGGING_LEVEL_COM_ZAXXER_HIKARI:-INFO}
     depends_on:
       postgres-primary:
         condition: service_healthy
-      postgres-replica:
-        condition: service_started
-      audit-postgres:
-        condition: service_started
       ml-service:
         condition: service_started
     healthcheck:
