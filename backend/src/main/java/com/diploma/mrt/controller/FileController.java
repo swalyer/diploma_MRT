@@ -24,7 +24,7 @@ public class FileController {
     }
 
     @GetMapping("/{artifactId}/download")
-    public ResponseEntity<Resource> download(Authentication authentication, @PathVariable Long artifactId) {
+    public ResponseEntity<Resource> download(Authentication authentication, @PathVariable("artifactId") Long artifactId) {
         Artifact artifact = artifactRepository.findById(artifactId).orElseThrow(() -> new NotFoundException("Artifact not found"));
         if (!artifact.getCaseEntity().getCreatedBy().getEmail().equals(authentication.getName())) {
             throw new AccessDeniedException("Access denied");

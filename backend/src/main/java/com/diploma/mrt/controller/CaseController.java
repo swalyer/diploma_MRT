@@ -21,7 +21,8 @@ public class CaseController {
     }
 
     @GetMapping
-    public List<CaseDtos.CaseResponse> list(Authentication authentication, @RequestParam(required = false) CaseStatus status) {
+    public List<CaseDtos.CaseResponse> list(Authentication authentication,
+                                            @RequestParam(name = "status", required = false) CaseStatus status) {
         return caseService.list(authentication.getName(), status);
     }
 
@@ -32,30 +33,32 @@ public class CaseController {
     }
 
     @GetMapping("/{id}")
-    public CaseDtos.CaseResponse get(Authentication authentication, @PathVariable Long id) {
+    public CaseDtos.CaseResponse get(Authentication authentication, @PathVariable("id") Long id) {
         return caseService.get(authentication.getName(), id);
     }
 
     @PostMapping("/{id}/upload")
     @ResponseStatus(HttpStatus.CREATED)
-    public CaseDtos.ArtifactResponse upload(Authentication authentication, @PathVariable Long id, @RequestParam("file") MultipartFile file) {
+    public CaseDtos.ArtifactResponse upload(Authentication authentication,
+                                            @PathVariable("id") Long id,
+                                            @RequestParam(name = "file") MultipartFile file) {
         return caseService.upload(authentication.getName(), id, file);
     }
 
     @PostMapping("/{id}/process")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void process(Authentication authentication, @PathVariable Long id) {
+    public void process(Authentication authentication, @PathVariable("id") Long id) {
         caseService.process(authentication.getName(), id);
     }
 
     @GetMapping("/{id}/status")
-    public CaseDtos.StatusResponse status(Authentication authentication, @PathVariable Long id) {
+    public CaseDtos.StatusResponse status(Authentication authentication, @PathVariable("id") Long id) {
         return caseService.status(authentication.getName(), id);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(Authentication authentication, @PathVariable Long id) {
+    public void delete(Authentication authentication, @PathVariable("id") Long id) {
         caseService.delete(authentication.getName(), id);
     }
 }
