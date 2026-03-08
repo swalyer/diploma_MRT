@@ -23,7 +23,7 @@ class RealPipeline(Pipeline):
 
     def run(self, request: InferRequest) -> InferResponse:
         validate_request(request)
-        input_key = request.fileReferences['inputObjectKey']
+        input_key = request.fileReferences.inputObjectKey
         nii_key = to_nifti(input_key, self.artifacts_root)
         liver_mask_key, liver_real = self.totalsegmentator.segment_liver(nii_key, f'{nii_key}.liver_mask.nii.gz', self.artifacts_root, request.modality)
 
