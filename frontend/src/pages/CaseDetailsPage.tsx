@@ -49,16 +49,28 @@ export function CaseDetailsPage() {
         api.get(`/cases/${id}/viewer/3d`)
       ])
 
-      setCaseSummary(core[0].data)
-      setStatus(core[1].data)
+      const nextSummary = core[0].data as CaseItem
+      const nextStatus = core[1].data as StatusPayload
+      setCaseSummary(nextSummary)
+      setStatus(nextStatus)
       setArtifacts(core[2].data)
       setViewer3d(core[3].data)
+
+      const inferenceCompleted = nextStatus.inferenceStatus === 'COMPLETED' && nextStatus.status === 'COMPLETED'
+
+      if (!inferenceCompleted) {
+        setReport('')
+        setFindings([])
+        setState('success')
+        return
+      }
 
       const [reportRes, findingsRes] = await Promise.allSettled([api.get(`/cases/${id}/report`), api.get(`/cases/${id}/findings`)])
       const degraded = reportRes.status === 'rejected' || findingsRes.status === 'rejected'
       setReport(reportRes.status === 'fulfilled' ? reportRes.value.data.reportText : '')
       setFindings(findingsRes.status === 'fulfilled' ? findingsRes.value.data : [])
       setState(degraded ? 'success-degraded' : 'success')
+
     } catch {
       setState('error')
       setError('Unable to load case core data. We only show a minimal-safe shell until verified data is available.')
@@ -86,6 +98,16 @@ export function CaseDetailsPage() {
     [artifacts, viewer3d, status]
   )
 
+  const failureEvent = useMemo(() => {
+    const failed = [...(status?.stageAuditTrail ?? [])].reverse().find((e) => e.action === 'INFERENCE_FAILED')
+    if (!failed?.details) return null
+    try {
+      return JSON.parse(failed.details) as { stage?: string; message?: string; error?: string; httpStatus?: number }
+    } catch {
+      return { message: failed.details }
+    }
+  }, [status])
+
   if (state === 'loading') return <Card><CardContent><Typography>Loading case workspace…</Typography></CardContent></Card>
 
   if (state === 'error') {
@@ -104,6 +126,7 @@ export function CaseDetailsPage() {
   }
 
   const canRunPipeline = Boolean(caseSummary?.id) && status?.status !== 'PROCESSING'
+  const inferenceFailed = status?.inferenceStatus === 'FAILED' || status?.status === 'FAILED'
 
   return (
     <Stack spacing={2.5}>
@@ -116,12 +139,18 @@ export function CaseDetailsPage() {
                 <Typography color="text.secondary">Pseudo ID: {caseSummary?.patientPseudoId} · Modality: {caseSummary?.modality ?? 'Unknown'}</Typography>
               </Box>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip label={`Status: ${status?.status ?? 'N/A'}`} />
-                <Chip label={`Inference: ${status?.inferenceStatus ?? 'N/A'}`} />
+                <Chip label={`Status: ${status?.status ?? 'N/A'}`} color={status?.status === 'FAILED' ? 'error' : 'default'} />
+                <Chip label={`Inference: ${status?.inferenceStatus ?? 'N/A'}`} color={status?.inferenceStatus === 'FAILED' ? 'error' : 'default'} />
                 <Chip color="warning" label={capability.mode} />
                 {state === 'success-degraded' && <Chip color="warning" label="Partial data loaded" />}
               </Stack>
             </Stack>
+
+            {inferenceFailed && (
+              <Alert severity="error">
+                Stage: {failureEvent?.stage ?? 'inference_failed'} · {failureEvent?.message ?? 'Inference failed. Output artifacts/results are unavailable.'}
+              </Alert>
+            )}
 
             <Grid2 container spacing={1}>
               <Grid2 size={{ xs: 12, lg: 8 }}>
@@ -130,7 +159,7 @@ export function CaseDetailsPage() {
                   <Chip size="small" label={`Lesion mask: ${capability.lesionMask ? 'available' : 'unavailable'}`} color={capability.lesionMask ? 'success' : 'default'} />
                   <Chip size="small" label={`Liver mesh: ${capability.liverMesh ? 'available' : 'unavailable'}`} color={capability.liverMesh ? 'success' : 'default'} />
                   <Chip size="small" label={`Lesion mesh: ${capability.lesionMesh ? 'available' : 'unavailable'}`} color={capability.lesionMesh ? 'success' : 'default'} />
-                  <Chip size="small" color="warning" label="MRI support is experimental" />
+                  {caseSummary?.modality === 'MRI' && <Chip size="small" color="warning" label="MRI support is experimental" />}
                 </Stack>
               </Grid2>
               <Grid2 size={{ xs: 12, lg: 4 }}>
@@ -188,10 +217,10 @@ export function CaseDetailsPage() {
             <Stack direction="row" spacing={1}>
               <Button size="small" variant="outlined" onClick={() => navigator.clipboard.writeText(report || '')} disabled={!report}>Copy report</Button>
             </Stack>
-            <Typography whiteSpace="pre-wrap">{report || 'Report unavailable (not returned by API).'}</Typography>
+            <Typography whiteSpace="pre-wrap">{report || (inferenceFailed ? 'Report unavailable because inference failed.' : 'Report unavailable (not returned by API).')}</Typography>
             <Divider />
             <Typography variant="subtitle2">Structured findings</Typography>
-            {!findings.length ? <Alert severity="info">No structured findings returned.</Alert> : findings.map((f) => (
+            {!findings.length ? <Alert severity="info">{inferenceFailed ? 'No findings because inference failed.' : 'No structured findings returned.'}</Alert> : findings.map((f) => (
               <Typography key={f.id} variant="body2">{f.label} · volume {f.volumeMm3 ?? 'N/A'} mm³ · confidence {f.confidence ?? 'N/A'}</Typography>
             ))}
           </Stack>
@@ -206,7 +235,7 @@ export function CaseDetailsPage() {
         <Card><CardContent>
           <Typography variant="h6">Artifact inventory</Typography>
           {!artifacts.length ? (
-            <Alert severity="info" sx={{ mt: 1.5 }}>No artifacts available. Pipeline output may be missing or run has not started.</Alert>
+            <Alert severity="info" sx={{ mt: 1.5 }}>{inferenceFailed ? 'No artifacts available because inference failed before artifact generation.' : 'No artifacts available. Pipeline output may be missing or run has not started.'}</Alert>
           ) : (
             <List dense>
               {artifacts.map((a) => (
@@ -219,7 +248,7 @@ export function CaseDetailsPage() {
               ))}
             </List>
           )}
-          <Alert severity="info">Status payload now includes backend execution mode/model version when available; missing values are shown as unavailable.</Alert>
+          <Alert severity="info">Status payload includes backend execution mode/model version; failure details are exposed in stage audit entries when available.</Alert>
         </CardContent></Card>
       )}
 
