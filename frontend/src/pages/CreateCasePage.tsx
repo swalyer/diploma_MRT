@@ -1,7 +1,16 @@
 import { Alert, Box, Button, Card, CardContent, Chip, Grid2, LinearProgress, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import type { AxiosError } from 'axios'
 import { DragEvent, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+
+type ArtifactUploadResponse = {
+  id: number
+  type: string
+  mimeType: string
+  fileName: string
+  downloadUrl: string
+}
 
 export function CreateCasePage() {
   const [patientPseudoId, setPatientPseudoId] = useState('PSEUDO-001')
@@ -9,6 +18,7 @@ export function CreateCasePage() {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const nav = useNavigate()
 
   const validationError = useMemo(() => {
@@ -23,23 +33,61 @@ export function CreateCasePage() {
     if (next) setFile(next)
   }
 
+  const describeAxiosError = (prefix: string, err: unknown) => {
+    const axiosError = err as AxiosError<{ error?: string; message?: string }>
+    const status = axiosError.response?.status
+    const message = axiosError.response?.data?.message || axiosError.response?.data?.error
+    return `${prefix}${status ? ` (HTTP ${status})` : ''}${message ? `: ${message}` : '.'}`
+  }
+
   const submit = async () => {
     setError(null)
+    setSuccessMessage(null)
     if (!patientPseudoId.trim()) return setError('Patient pseudo ID is required.')
     if (!file) return setError('Please attach a DICOM ZIP or NIfTI file to proceed.')
     if (validationError) return setError(validationError)
     setLoading(true)
+
+    let caseId: number
     try {
       const created = await api.post('/cases', { patientPseudoId, modality })
+      caseId = Number(created.data?.id)
+      if (!caseId) {
+        throw new Error('Case created but response does not include case id')
+      }
+      setSuccessMessage(`Case #${caseId} created.`)
+    } catch (err) {
+      setError(describeAxiosError('Case creation failed', err))
+      setLoading(false)
+      return
+    }
+
+    try {
       const fd = new FormData()
       fd.append('file', file)
-      await api.post(`/cases/${created.data.id}/upload`, fd)
-      nav(`/cases/${created.data.id}`)
-    } catch {
-      setError('Create/upload failed. Check token, artifact format, and backend availability.')
-    } finally {
+      const uploadRes = await api.post<ArtifactUploadResponse>(`/cases/${caseId}/upload`, fd)
+      const payload = uploadRes.data
+      const isValidResponse = Boolean(payload?.id && payload?.type && payload?.mimeType && payload?.fileName && payload?.downloadUrl)
+      if (!isValidResponse) {
+        throw new Error('Upload completed but response payload is invalid')
+      }
+      setSuccessMessage(`Case #${caseId} created and source artifact uploaded (${payload.fileName}).`)
+    } catch (err) {
+      setError(describeAxiosError(`Case #${caseId} created, but upload failed`, err))
       setLoading(false)
+      return
     }
+
+    try {
+      await api.get(`/cases/${caseId}`)
+      nav(`/cases/${caseId}`)
+    } catch (err) {
+      setError(describeAxiosError(`Case #${caseId} created and upload succeeded, but post-upload refresh failed`, err))
+      setLoading(false)
+      return
+    }
+
+    setLoading(false)
   }
 
   return <Grid2 container spacing={2}>
@@ -62,10 +110,11 @@ export function CreateCasePage() {
           <Box onDrop={onDrop} onDragOver={(e) => e.preventDefault()} sx={{ p: 3, border: '2px dashed #aac1ec', borderRadius: 2, background: '#f8fbff' }}>
             <Typography fontWeight={700}>Drag and drop study package</Typography>
             <Typography variant="body2" color="text.secondary">Accepted: `.nii`, `.nii.gz`, `.zip` (DICOM package). Upload is persisted by backend storage service.</Typography>
-            <Button sx={{ mt: 1.5 }} variant="outlined" component="label">Choose file<input hidden type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></Button>
+            <Button sx={{ mt: 1.5 }} variant="outlined" component="label">Choose file<input hidden type="file" accept=".nii,.nii.gz,.zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></Button>
           </Box>
 
           {file && <Alert severity={validationError ? 'error' : 'info'}>Selected: {file.name}{validationError ? ` · ${validationError}` : ''}</Alert>}
+          {successMessage && <Alert severity="success">{successMessage}</Alert>}
           {error && <Alert severity="error">{error}</Alert>}
           {loading && <LinearProgress />}
           <Button variant="contained" onClick={submit} disabled={loading}>Create case & upload</Button>

@@ -7,7 +7,7 @@ from app.postprocessing.report_builder import build_report
 
 class MockPipeline(Pipeline):
     def run(self, request: InferRequest) -> InferResponse:
-        input_key = request.fileReferences['inputObjectKey']
+        input_key = request.fileReferences.inputObjectKey
         suspicious = request.caseId % 2 == 1
         findings = [Finding(type='LESION', label='Mock suspicious lesion', confidence=0.91, sizeMm=12.1, volumeMm3=889.0, locationJson='{"segment":"S6"}')] if suspicious else []
         report_text, report_json = build_report(request.modality, 'mock', len(findings))

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
@@ -112,7 +113,7 @@ public class CaseServiceImpl implements CaseService {
         inferenceRunRepository.save(run);
         try {
             Artifact original = artifactRepository.findByCaseEntityId(id).stream().filter(a -> "ORIGINAL_INPUT".equals(a.getType())).findFirst().orElseThrow(() -> new NotFoundException("Input missing"));
-            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_REQUEST_SENT", "{}");
+            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_REQUEST_SENT", "{\"stage\":\"ml_request_sent\"}");
             CaseDtos.MlResult result = mlClient.infer(id, caseEntity.getModality().name(), original.getFilePath());
             persistMlResult(caseEntity, result);
             run.setModelVersion(result.modelVersion());
@@ -123,10 +124,20 @@ public class CaseServiceImpl implements CaseService {
         } catch (Exception exception) {
             run.setStatus(InferenceStatus.FAILED);
             caseEntity.setStatus(CaseStatus.FAILED);
-            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_FAILED", "{\"error\":\"" + exception.getClass().getSimpleName() + "\"}");
+            String failureDetails = buildFailureDetails(exception);
+            run.setMetricsJson(failureDetails);
+            auditService.log(caseEntity.getCreatedBy().getId(), id, "INFERENCE_FAILED", failureDetails);
         }
         run.setFinishedAt(Instant.now());
         caseEntity.setUpdatedAt(Instant.now());
+    }
+
+    private String buildFailureDetails(Exception exception) {
+        if (exception instanceof RestClientResponseException responseException) {
+            return "{\"stage\":\"ml_request_validation_failed\",\"message\":\"ml-service rejected inference request (" + responseException.getRawStatusCode() + ")\",\"httpStatus\":" + responseException.getRawStatusCode() + ",\"error\":\"" + responseException.getClass().getSimpleName() + "\"}";
+        }
+        String message = exception.getMessage() == null ? "unexpected error" : exception.getMessage().replace("\"", "'");
+        return "{\"stage\":\"inference_failed\",\"message\":\"" + message + "\",\"error\":\"" + exception.getClass().getSimpleName() + "\"}";
     }
 
     private void persistMlResult(CaseEntity caseEntity, CaseDtos.MlResult result) {
@@ -206,6 +217,7 @@ public class CaseServiceImpl implements CaseService {
             Map<String, String> row = new LinkedHashMap<>();
             row.put("action", a.getAction());
             row.put("at", a.getCreatedAt().toString());
+            row.put("details", a.getDetailsJson());
             return row;
         }).toList();
         return new CaseDtos.StatusResponse(
