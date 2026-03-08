@@ -14,7 +14,7 @@ export type StatusPayload = {
   executionMode: string
   modelVersion: string
   metricsJson: string | null
-  stageAuditTrail: Array<{ action: string; at: string }>
+  stageAuditTrail: Array<{ action: string; at: string; details?: string }>
 }
 
 export type ArtifactItem = {
