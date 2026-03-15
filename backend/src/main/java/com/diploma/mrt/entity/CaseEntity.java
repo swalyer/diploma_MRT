@@ -22,6 +22,16 @@ public class CaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CaseStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CaseOrigin origin;
+    private String demoCaseSlug;
+    private String demoManifestVersion;
+    private String sourceDataset;
+    @Column(columnDefinition = "text")
+    private String sourceAttribution;
+    @Enumerated(EnumType.STRING)
+    private DemoCategory demoCategory;
     @ManyToOne(optional = false)
     @JoinColumn(name = "created_by")
     private User createdBy;

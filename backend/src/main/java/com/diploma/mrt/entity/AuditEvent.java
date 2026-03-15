@@ -1,5 +1,8 @@
 package com.diploma.mrt.entity;
 
+import com.diploma.mrt.model.ProcessDetails;
+import com.diploma.mrt.persistence.converter.ProcessDetailsJsonConverter;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,10 +18,12 @@ public class AuditEvent {
     private Long id;
     private Long userId;
     private Long caseId;
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String action;
+    private AuditAction action;
+    @Convert(converter = ProcessDetailsJsonConverter.class)
     @Column(columnDefinition = "text")
-    private String detailsJson;
+    private ProcessDetails details;
     @Column(nullable = false)
     private Instant createdAt;
 }

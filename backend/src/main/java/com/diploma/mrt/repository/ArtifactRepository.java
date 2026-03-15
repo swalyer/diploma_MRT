@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface ArtifactRepository extends JpaRepository<Artifact, Long> {
     List<Artifact> findByCaseEntityId(Long caseId);
+    void deleteByCaseEntityId(Long caseId);
 }

@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
     Optional<Report> findByCaseEntityId(Long caseId);
+    void deleteByCaseEntityId(Long caseId);
 }

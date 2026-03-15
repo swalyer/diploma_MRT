@@ -29,11 +29,11 @@ public class FileController {
         if (!artifact.getCaseEntity().getCreatedBy().getEmail().equals(authentication.getName())) {
             throw new AccessDeniedException("Access denied");
         }
-        Resource resource = storageService.loadAsResource(artifact.getFilePath());
+        Resource resource = storageService.loadAsResource(artifact.getObjectKey());
         if (!resource.exists() || !resource.isReadable()) {
             throw new NotFoundException("Artifact binary not found");
         }
-        String filename = resource.getFilename() == null ? "artifact.bin" : resource.getFilename();
+        String filename = artifact.getOriginalFileName();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, artifact.getMimeType())
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(filename).build().toString())
