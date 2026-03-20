@@ -22,7 +22,7 @@ public class Report {
     @Column(columnDefinition = "text", nullable = false)
     private String reportText;
     @Convert(converter = ReportDataJsonConverter.class)
-    @Column(columnDefinition = "text", nullable = false)
+    @Column(name = "report_json", columnDefinition = "text", nullable = false)
     private ReportData reportData;
     @Column(nullable = false)
     private Instant createdAt;

@@ -30,4 +30,12 @@ public class Artifact {
     private ArtifactStorageDisposition storageDisposition = ArtifactStorageDisposition.MANAGED;
     @Column(nullable = false)
     private Instant createdAt;
+
+    public boolean isManaged() {
+        return storageDisposition == null || storageDisposition == ArtifactStorageDisposition.MANAGED;
+    }
+
+    public boolean isSourceStudy() {
+        return type != null && type.isSourceStudy();
+    }
 }

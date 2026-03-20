@@ -7,6 +7,7 @@ import com.diploma.mrt.entity.ArtifactType;
 import com.diploma.mrt.entity.AuditAction;
 import com.diploma.mrt.entity.CaseEntity;
 import com.diploma.mrt.entity.CaseOrigin;
+import com.diploma.mrt.entity.CaseResultSource;
 import com.diploma.mrt.entity.CaseStatus;
 import com.diploma.mrt.entity.ExecutionMode;
 import com.diploma.mrt.entity.InferenceRun;
@@ -79,14 +80,7 @@ public class CaseServiceImpl implements CaseService {
     @Override
     public CaseDtos.CaseResponse create(String userEmail, CaseDtos.CreateCaseRequest request) {
         User user = caseAccessService.findUser(userEmail);
-        CaseEntity caseEntity = new CaseEntity();
-        caseEntity.setPatientPseudoId(request.patientPseudoId());
-        caseEntity.setModality(request.modality());
-        caseEntity.setStatus(CaseStatus.CREATED);
-        caseEntity.setOrigin(CaseOrigin.LIVE_PROCESSED);
-        caseEntity.setCreatedBy(user);
-        caseEntity.setCreatedAt(Instant.now());
-        caseEntity.setUpdatedAt(Instant.now());
+        CaseEntity caseEntity = CaseEntity.newLive(user, request.patientPseudoId(), request.modality(), Instant.now());
         CaseEntity saved = caseRepository.save(caseEntity);
         auditService.log(user.getId(), saved.getId(), AuditAction.CASE_CREATED);
         return map(saved, null);
@@ -96,8 +90,8 @@ public class CaseServiceImpl implements CaseService {
     public List<CaseDtos.CaseResponse> list(String userEmail, CaseStatus status) {
         String normalizedEmail = EmailNormalizer.normalize(userEmail);
         List<CaseEntity> cases = status == null
-                ? caseRepository.findByCreatedByEmail(normalizedEmail)
-                : caseRepository.findByCreatedByEmailAndStatus(normalizedEmail, status);
+                ? caseRepository.findReadableByEmailIncludingDemoOrigin(normalizedEmail, CaseOrigin.SEEDED_DEMO)
+                : caseRepository.findReadableByEmailIncludingDemoOriginAndStatus(normalizedEmail, CaseOrigin.SEEDED_DEMO, status);
         Map<Long, InferenceRun> latestRuns = latestRunsByCaseId(cases);
         return cases.stream()
                 .map(caseEntity -> map(caseEntity, latestRuns.get(caseEntity.getId())))
@@ -106,7 +100,7 @@ public class CaseServiceImpl implements CaseService {
 
     @Override
     public CaseDtos.CaseResponse get(String userEmail, Long id) {
-        CaseEntity caseEntity = caseAccessService.findOwnedCase(userEmail, id);
+        CaseEntity caseEntity = caseAccessService.findReadableCase(userEmail, id);
         InferenceRun latestRun = inferenceRunRepository.findByCaseEntityIdOrderByStartedAtDesc(id).stream().findFirst().orElse(null);
         return map(caseEntity, latestRun);
     }
@@ -114,23 +108,22 @@ public class CaseServiceImpl implements CaseService {
     @Override
     @Transactional
     public CaseDtos.ArtifactResponse upload(String userEmail, Long id, MultipartFile file) {
-        CaseEntity caseEntity = caseAccessService.findOwnedCaseForUpdate(userEmail, id);
-        ensureUploadAllowed(caseEntity);
+        CaseEntity caseEntity = caseAccessService.findMutableCaseForUpdate(userEmail, id);
+        caseEntity.assertUploadAllowed();
         caseFileService.validateUploadedStudy(file);
         List<Artifact> existingArtifacts = artifactRepository.findByCaseEntityId(id).stream()
-                .filter(a -> a.getType() == ArtifactType.ORIGINAL_INPUT || a.getType() == ArtifactType.ORIGINAL_STUDY)
+                .filter(Artifact::isSourceStudy)
                 .toList();
         String objectKey = storageService.saveCaseFile(id, file);
         caseFileService.registerDeleteOnRollback(objectKey);
         existingArtifacts.forEach(artifactRepository::delete);
         caseFileService.registerDeleteAfterCommit(existingArtifacts.stream().map(Artifact::getObjectKey).toList());
 
-        caseEntity.setStatus(CaseStatus.UPLOADED);
-        caseEntity.setUpdatedAt(Instant.now());
+        caseEntity.markUploaded(Instant.now());
 
         Artifact artifact = new Artifact();
         artifact.setCaseEntity(caseEntity);
-        artifact.setType(ArtifactType.ORIGINAL_STUDY);
+        artifact.setType(ArtifactType.canonicalSourceStudy());
         artifact.setObjectKey(objectKey);
         artifact.setMimeType(file.getContentType() == null ? "application/octet-stream" : file.getContentType());
         artifact.setOriginalFileName(safeFileName(file.getOriginalFilename()));
@@ -144,11 +137,10 @@ public class CaseServiceImpl implements CaseService {
     @Override
     @Transactional
     public void process(String userEmail, Long id) {
-        CaseEntity caseEntity = caseAccessService.findOwnedCaseForUpdate(userEmail, id);
-        ensureProcessAllowed(caseEntity);
+        CaseEntity caseEntity = caseAccessService.findMutableCaseForUpdate(userEmail, id);
+        caseEntity.assertProcessAllowed();
         findOriginalInput(id);
-        caseEntity.setStatus(CaseStatus.PROCESSING);
-        caseEntity.setUpdatedAt(Instant.now());
+        caseEntity.markProcessing(Instant.now());
         auditService.log(caseEntity.getCreatedBy().getId(), id, AuditAction.INFERENCE_ENQUEUED);
         triggerProcessingAfterCommit(id, defaultExecutionMode);
     }
@@ -156,8 +148,8 @@ public class CaseServiceImpl implements CaseService {
     @Override
     @Transactional
     public void delete(String userEmail, Long id) {
-        CaseEntity caseEntity = caseAccessService.findOwnedCaseForUpdate(userEmail, id);
-        ensureDeleteAllowed(caseEntity);
+        CaseEntity caseEntity = caseAccessService.findMutableCaseForUpdate(userEmail, id);
+        caseEntity.assertDeleteAllowed();
         List<Artifact> artifacts = artifactRepository.findByCaseEntityId(id);
         artifactRepository.deleteByCaseEntityId(id);
         findingRepository.deleteByCaseEntityId(id);
@@ -169,13 +161,13 @@ public class CaseServiceImpl implements CaseService {
 
     @Override
     public List<CaseDtos.ArtifactResponse> artifacts(String userEmail, Long id) {
-        caseAccessService.findOwnedCase(userEmail, id);
+        caseAccessService.findReadableCase(userEmail, id);
         return artifactRepository.findByCaseEntityId(id).stream().map(this::toArtifactResponse).toList();
     }
 
     @Override
     public List<CaseDtos.FindingResponse> findings(String userEmail, Long id) {
-        caseAccessService.findOwnedCase(userEmail, id);
+        caseAccessService.findReadableCase(userEmail, id);
         return findingRepository.findByCaseEntityId(id).stream()
                 .map(f -> new CaseDtos.FindingResponse(f.getId(), f.getType(), f.getLabel(), f.getConfidence(), f.getSizeMm(), f.getVolumeMm3(), f.getLocation()))
                 .toList();
@@ -183,33 +175,36 @@ public class CaseServiceImpl implements CaseService {
 
     @Override
     public CaseDtos.ReportResponse report(String userEmail, Long id) {
-        caseAccessService.findOwnedCase(userEmail, id);
+        caseAccessService.findReadableCase(userEmail, id);
         Report report = reportRepository.findByCaseEntityId(id).orElseThrow(() -> new NotFoundException("Report not found"));
         return new CaseDtos.ReportResponse(report.getReportText(), report.getReportData());
     }
 
     @Override
     public CaseDtos.StatusResponse status(String userEmail, Long id) {
-        CaseEntity caseEntity = caseAccessService.findOwnedCase(userEmail, id);
+        CaseEntity caseEntity = caseAccessService.findReadableCase(userEmail, id);
         InferenceRun run = inferenceRunRepository.findByCaseEntityIdOrderByStartedAtDesc(id).stream().findFirst().orElse(null);
+        InferenceRun readRun = readableRun(caseEntity, run);
         List<CaseDtos.StageAuditEvent> stages = auditService.listByCase(id).stream()
                 .map(a -> new CaseDtos.StageAuditEvent(a.getAction(), a.getCreatedAt(), a.getDetails()))
                 .toList();
         return new CaseDtos.StatusResponse(
                 id,
                 caseEntity.getStatus(),
-                run == null ? null : run.getStatus(),
-                run == null ? null : run.getExecutionMode(),
-                run == null ? null : run.getModelVersion(),
-                run == null ? null : run.getMetrics(),
-                run == null ? null : run.getFailureDetails(),
+                readRun == null ? null : readRun.getStatus(),
+                readRun == null ? null : readRun.getExecutionMode(),
+                readRun == null ? null : readRun.getModelVersion(),
+                readRun == null ? null : readRun.getMetrics(),
+                readRun == null ? null : readRun.getFailureDetails(),
+                isResultReady(caseEntity, run),
+                resultSource(caseEntity, run),
                 stages
         );
     }
 
     @Override
     public CaseDtos.Viewer3DResponse viewer3d(String userEmail, Long id) {
-        caseAccessService.findOwnedCase(userEmail, id);
+        caseAccessService.findReadableCase(userEmail, id);
         List<Artifact> artifacts = artifactRepository.findByCaseEntityId(id);
         Long liver = artifacts.stream().filter(a -> a.getType() == ArtifactType.LIVER_MESH).map(Artifact::getId).findFirst().orElse(null);
         Long lesion = artifacts.stream().filter(a -> a.getType() == ArtifactType.LESION_MESH).map(Artifact::getId).findFirst().orElse(null);
@@ -218,30 +213,9 @@ public class CaseServiceImpl implements CaseService {
 
     Artifact findOriginalInput(Long id) {
         return artifactRepository.findByCaseEntityId(id).stream()
-                .filter(a -> a.getType() == ArtifactType.ORIGINAL_INPUT || a.getType() == ArtifactType.ORIGINAL_STUDY)
+                .filter(Artifact::isSourceStudy)
                 .findFirst()
                 .orElseThrow(() -> new BadRequestException("Input file is required before processing"));
-    }
-
-    private void ensureUploadAllowed(CaseEntity caseEntity) {
-        if (!(caseEntity.getStatus() == CaseStatus.CREATED || caseEntity.getStatus() == CaseStatus.UPLOADED || caseEntity.getStatus() == CaseStatus.FAILED)) {
-            throw new ConflictException("Upload is not allowed for case status " + caseEntity.getStatus());
-        }
-    }
-
-    private void ensureProcessAllowed(CaseEntity caseEntity) {
-        if (caseEntity.getOrigin() == CaseOrigin.SEEDED_DEMO) {
-            throw new ConflictException("Processing is disabled for seeded demo cases");
-        }
-        if (!(caseEntity.getStatus() == CaseStatus.UPLOADED || caseEntity.getStatus() == CaseStatus.COMPLETED || caseEntity.getStatus() == CaseStatus.FAILED)) {
-            throw new ConflictException("Processing is not allowed for case status " + caseEntity.getStatus());
-        }
-    }
-
-    private void ensureDeleteAllowed(CaseEntity caseEntity) {
-        if (caseEntity.getStatus() == CaseStatus.PROCESSING) {
-            throw new ConflictException("Delete is not allowed while case is processing");
-        }
     }
 
     private void triggerProcessingAfterCommit(Long caseId, ExecutionMode requestedExecutionMode) {
@@ -258,14 +232,15 @@ public class CaseServiceImpl implements CaseService {
     }
 
     private CaseDtos.CaseResponse map(CaseEntity caseEntity, InferenceRun latestRun) {
-        CaseOrigin origin = caseEntity.getOrigin() == null ? CaseOrigin.LIVE_PROCESSED : caseEntity.getOrigin();
+        CaseOrigin origin = caseEntity.effectiveOrigin();
+        InferenceRun readRun = readableRun(caseEntity, latestRun);
         return new CaseDtos.CaseResponse(
                 caseEntity.getId(),
                 caseEntity.getPatientPseudoId(),
                 caseEntity.getModality(),
                 caseEntity.getStatus(),
-                latestRun == null ? null : latestRun.getStatus(),
-                latestRun == null ? null : latestRun.getExecutionMode(),
+                readRun == null ? null : readRun.getStatus(),
+                readRun == null ? null : readRun.getExecutionMode(),
                 origin,
                 caseEntity.getDemoCategory(),
                 caseEntity.getDemoCaseSlug(),
@@ -298,6 +273,32 @@ public class CaseServiceImpl implements CaseService {
         }
         latestRuns.forEach(run -> runsByCaseId.put(run.getCaseEntity().getId(), run));
         return runsByCaseId;
+    }
+
+    private InferenceRun readableRun(CaseEntity caseEntity, InferenceRun latestRun) {
+        if (caseEntity.effectiveOrigin() == CaseOrigin.SEEDED_DEMO) {
+            return null;
+        }
+        return latestRun;
+    }
+
+    private boolean isResultReady(CaseEntity caseEntity, InferenceRun latestRun) {
+        if (caseEntity.effectiveOrigin() == CaseOrigin.SEEDED_DEMO) {
+            return caseEntity.getStatus() == CaseStatus.COMPLETED;
+        }
+        return latestRun != null
+                && latestRun.getStatus() == com.diploma.mrt.entity.InferenceStatus.COMPLETED
+                && caseEntity.getStatus() == CaseStatus.COMPLETED;
+    }
+
+    private CaseResultSource resultSource(CaseEntity caseEntity, InferenceRun latestRun) {
+        if (caseEntity.effectiveOrigin() == CaseOrigin.SEEDED_DEMO && caseEntity.getStatus() == CaseStatus.COMPLETED) {
+            return CaseResultSource.SEEDED_IMPORT;
+        }
+        if (latestRun != null && latestRun.getStatus() == com.diploma.mrt.entity.InferenceStatus.COMPLETED) {
+            return CaseResultSource.ML_INFERENCE;
+        }
+        return CaseResultSource.NONE;
     }
 
     private String safeFileName(String originalFilename) {

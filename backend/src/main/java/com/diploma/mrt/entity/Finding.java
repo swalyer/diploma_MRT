@@ -26,6 +26,6 @@ public class Finding {
     private Double sizeMm;
     private Double volumeMm3;
     @Convert(converter = FindingLocationJsonConverter.class)
-    @Column(columnDefinition = "text")
+    @Column(name = "location_json", columnDefinition = "text")
     private FindingLocation location;
 }

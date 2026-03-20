@@ -1,8 +1,6 @@
 package com.diploma.mrt.service;
 
 import com.diploma.mrt.client.MlClient;
-import com.diploma.mrt.client.contract.MlInferenceRequest;
-import com.diploma.mrt.client.contract.MlInferenceResponse;
 import com.diploma.mrt.entity.Artifact;
 import com.diploma.mrt.entity.ArtifactType;
 import com.diploma.mrt.entity.CaseEntity;
@@ -14,10 +12,11 @@ import com.diploma.mrt.entity.InferenceStatus;
 import com.diploma.mrt.entity.Modality;
 import com.diploma.mrt.entity.Report;
 import com.diploma.mrt.entity.User;
-import com.diploma.mrt.model.MlMetrics;
-import com.diploma.mrt.model.ReportCapabilities;
-import com.diploma.mrt.model.ReportData;
-import com.diploma.mrt.model.ReportSections;
+import com.diploma.mrt.integration.ml.contract.MlContractInferenceRequest;
+import com.diploma.mrt.integration.ml.contract.MlContractInferenceResponse;
+import com.diploma.mrt.integration.ml.contract.MlContractTypes;
+import com.diploma.mrt.integration.ml.mapper.MlContractRequestMapper;
+import com.diploma.mrt.integration.ml.mapper.MlContractResponseMapper;
 import com.diploma.mrt.repository.ArtifactRepository;
 import com.diploma.mrt.repository.CaseRepository;
 import com.diploma.mrt.repository.FindingRepository;
@@ -26,8 +25,6 @@ import com.diploma.mrt.repository.ReportRepository;
 import com.diploma.mrt.security.JwtService;
 import com.diploma.mrt.service.impl.CaseMaterializationService;
 import com.diploma.mrt.service.impl.CaseProcessingService;
-import com.diploma.mrt.service.impl.MlInferenceRequestFactory;
-import com.diploma.mrt.service.materialization.MlInferenceMaterializationMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -63,6 +60,7 @@ class CaseServiceFlowTest {
         AuditService audit = mock(AuditService.class);
         PlatformTransactionManager transactionManager = transactionManager();
         AtomicReference<InferenceRun> persistedRun = new AtomicReference<>();
+        AtomicReference<Report> persistedReport = new AtomicReference<>();
 
         CaseEntity c = caseEntity(1L, 7L);
         Artifact input = new Artifact();
@@ -80,6 +78,11 @@ class CaseServiceFlowTest {
             persistedRun.set(run);
             return run;
         });
+        when(reportRepo.save(any(Report.class))).thenAnswer((Answer<Report>) invocation -> {
+            Report report = invocation.getArgument(0);
+            persistedReport.set(report);
+            return report;
+        });
         when(runRepo.findById(any(Long.class))).thenAnswer(invocation -> Optional.ofNullable(persistedRun.get()));
         when(ml.infer(argThat(request -> matchesRequest(request, 1L, 99L, Modality.CT, ExecutionMode.REAL, "cases/1/input.nii.gz"))))
                 .thenReturn(successfulResponse("a", "l", "les", "lm", "lem"));
@@ -93,8 +96,8 @@ class CaseServiceFlowTest {
                 ml,
                 audit,
                 transactionManager,
-                new MlInferenceRequestFactory(),
-                new MlInferenceMaterializationMapper(),
+                new MlContractRequestMapper(),
+                new MlContractResponseMapper(),
                 caseMaterializationService,
                 true
         );
@@ -105,6 +108,18 @@ class CaseServiceFlowTest {
         verify(runRepo, atLeastOnce()).save(any(InferenceRun.class));
         verify(caseRepo, atLeastOnce()).save(argThat(caseEntity -> caseEntity.getStatus() == CaseStatus.COMPLETED));
         verify(runRepo, atLeastOnce()).save(argThat(run -> run.getExecutionMode() == ExecutionMode.REAL));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                """
+                Findings: f
+                
+                Impression: i
+                
+                Limitations: l
+                
+                Recommendation: r
+                """.trim(),
+                persistedReport.get().getReportText()
+        );
     }
 
     @Test
@@ -151,8 +166,8 @@ class CaseServiceFlowTest {
                 ml,
                 audit,
                 transactionManager,
-                new MlInferenceRequestFactory(),
-                new MlInferenceMaterializationMapper(),
+                new MlContractRequestMapper(),
+                new MlContractResponseMapper(),
                 caseMaterializationService,
                 true
         );
@@ -195,15 +210,21 @@ class CaseServiceFlowTest {
         });
         when(runRepo.findById(any(Long.class))).thenAnswer(invocation -> Optional.ofNullable(persistedRun.get()));
         when(ml.infer(argThat(request -> matchesRequest(request, 3L, 101L, Modality.CT, ExecutionMode.REAL, "cases/3/input.nii.gz"))))
-                .thenReturn(new MlInferenceResponse(
+                .thenReturn(new MlContractInferenceResponse(
                         "v1",
-                        InferenceStatus.FAILED,
+                        MlContractTypes.InferenceStatus.FAILED,
                         "real",
-                        new MlMetrics(ExecutionMode.REAL, false, false, false, true),
+                        new MlContractInferenceResponse.Metrics(
+                                mapExecutionMode(ExecutionMode.REAL),
+                                false,
+                                false,
+                                false,
+                                true
+                        ),
                         "t",
                         reportData(),
                         List.of(),
-                        new MlInferenceResponse.ArtifactOutputs(null, null, null, null, null)
+                        new MlContractInferenceResponse.ArtifactOutputs(null, null, null, null, null)
                 ));
 
         CaseMaterializationService caseMaterializationService =
@@ -215,8 +236,8 @@ class CaseServiceFlowTest {
                 ml,
                 audit,
                 transactionManager,
-                new MlInferenceRequestFactory(),
-                new MlInferenceMaterializationMapper(),
+                new MlContractRequestMapper(),
+                new MlContractResponseMapper(),
                 caseMaterializationService,
                 true
         );
@@ -259,8 +280,8 @@ class CaseServiceFlowTest {
                 ml,
                 audit,
                 transactionManager,
-                new MlInferenceRequestFactory(),
-                new MlInferenceMaterializationMapper(),
+                new MlContractRequestMapper(),
+                new MlContractResponseMapper(),
                 caseMaterializationService,
                 true
         );
@@ -279,7 +300,7 @@ class CaseServiceFlowTest {
     }
 
     private boolean matchesRequest(
-            MlInferenceRequest request,
+            MlContractInferenceRequest request,
             Long caseId,
             Long runId,
             Modality modality,
@@ -288,27 +309,33 @@ class CaseServiceFlowTest {
     ) {
         return request.caseId().equals(caseId)
                 && request.requestMetadata().runId().equals(runId)
-                && request.modality() == modality
-                && request.executionMode() == executionMode
+                && request.modality() == mapModality(modality)
+                && request.executionMode() == mapExecutionMode(executionMode)
                 && request.fileReferences().inputObjectKey().equals(inputObjectKey);
     }
 
-    private MlInferenceResponse successfulResponse(
+    private MlContractInferenceResponse successfulResponse(
             String enhancedObjectKey,
             String liverMaskObjectKey,
             String lesionMaskObjectKey,
             String liverMeshObjectKey,
             String lesionMeshObjectKey
     ) {
-        return new MlInferenceResponse(
+        return new MlContractInferenceResponse(
                 "v1",
-                InferenceStatus.COMPLETED,
+                MlContractTypes.InferenceStatus.COMPLETED,
                 "real",
-                new MlMetrics(ExecutionMode.REAL, true, true, false, true),
+                new MlContractInferenceResponse.Metrics(
+                        mapExecutionMode(ExecutionMode.REAL),
+                        true,
+                        true,
+                        false,
+                        true
+                ),
                 "t",
                 reportData(),
                 List.of(),
-                new MlInferenceResponse.ArtifactOutputs(
+                new MlContractInferenceResponse.ArtifactOutputs(
                         enhancedObjectKey,
                         liverMaskObjectKey,
                         lesionMaskObjectKey,
@@ -318,15 +345,29 @@ class CaseServiceFlowTest {
         );
     }
 
-    private ReportData reportData() {
-        return new ReportData(
-                Modality.CT,
-                ExecutionMode.REAL,
+    private MlContractInferenceResponse.ReportData reportData() {
+        return new MlContractInferenceResponse.ReportData(
+                MlContractTypes.Modality.CT,
+                MlContractTypes.ExecutionMode.REAL,
                 0,
                 true,
-                new ReportSections("f", "i", "l", "r"),
-                new ReportCapabilities(true, false)
+                new MlContractInferenceResponse.ReportSections("f", "i", "l", "r"),
+                new MlContractInferenceResponse.ReportCapabilities(true, false)
         );
+    }
+
+    private MlContractTypes.Modality mapModality(Modality modality) {
+        return switch (modality) {
+            case CT -> MlContractTypes.Modality.CT;
+            case MRI -> MlContractTypes.Modality.MRI;
+        };
+    }
+
+    private MlContractTypes.ExecutionMode mapExecutionMode(ExecutionMode executionMode) {
+        return switch (executionMode) {
+            case MOCK -> MlContractTypes.ExecutionMode.MOCK;
+            case REAL -> MlContractTypes.ExecutionMode.REAL;
+        };
     }
 
     private CaseEntity caseEntity(Long caseId, Long userId) {

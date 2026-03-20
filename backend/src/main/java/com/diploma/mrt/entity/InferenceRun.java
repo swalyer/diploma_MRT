@@ -34,7 +34,7 @@ public class InferenceRun {
     private Instant startedAt;
     private Instant finishedAt;
     @Convert(converter = MlMetricsJsonConverter.class)
-    @Column(columnDefinition = "text")
+    @Column(name = "metrics_json", columnDefinition = "text")
     private MlMetrics metrics;
     @Convert(converter = ProcessDetailsJsonConverter.class)
     @Column(name = "failure_details_json", columnDefinition = "text")

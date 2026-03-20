@@ -1,13 +1,10 @@
-package com.diploma.mrt.client.contract;
+package com.diploma.mrt.integration.ml.contract;
 
-import com.diploma.mrt.entity.ExecutionMode;
-import com.diploma.mrt.entity.Modality;
-
-public record MlInferenceRequest(
+public record MlContractInferenceRequest(
         String schemaVersion,
         Long caseId,
-        Modality modality,
-        ExecutionMode executionMode,
+        MlContractTypes.Modality modality,
+        MlContractTypes.ExecutionMode executionMode,
         FileReferences fileReferences,
         RequestMetadata requestMetadata
 ) {

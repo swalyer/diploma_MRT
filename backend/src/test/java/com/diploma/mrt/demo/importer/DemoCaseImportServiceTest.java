@@ -16,6 +16,7 @@ import com.diploma.mrt.entity.DemoCategory;
 import com.diploma.mrt.entity.Finding;
 import com.diploma.mrt.entity.FindingType;
 import com.diploma.mrt.entity.Modality;
+import com.diploma.mrt.entity.Role;
 import com.diploma.mrt.entity.Report;
 import com.diploma.mrt.entity.User;
 import com.diploma.mrt.exception.BadRequestException;
@@ -30,6 +31,7 @@ import com.diploma.mrt.service.StorageService;
 import com.diploma.mrt.service.impl.CaseAccessService;
 import com.diploma.mrt.service.impl.CaseMaterializationService;
 import com.diploma.mrt.service.materialization.DemoManifestMaterializationMapper;
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -62,6 +64,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DemoCaseImportServiceTest {
+    private static final String SEEDED_LIMITATIONS =
+            "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. "
+                    + "All outputs remain decision-support only and depend on artifact quality.";
+    private static final String SEEDED_RECOMMENDATION = "Correlate with source images and radiologist review before clinical use.";
+
     @TempDir
     Path tempDir;
 
@@ -92,7 +99,8 @@ class DemoCaseImportServiceTest {
                 auditService,
                 new CaseAccessService(caseRepository, userRepository),
                 new DemoManifestMaterializationMapper(),
-                new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService)
+                new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService),
+                Validation.buildDefaultValidatorFactory().getValidator()
         );
     }
 
@@ -119,7 +127,11 @@ class DemoCaseImportServiceTest {
         verify(artifactRepository).deleteAll(List.of());
         verify(findingRepository).deleteByCaseEntityId(101L);
         verify(reportRepository).deleteByCaseEntityId(101L);
+        verify(artifactRepository).flush();
+        verify(findingRepository).flush();
+        verify(reportRepository).flush();
         verify(inferenceRunRepository).deleteByCaseEntityId(101L);
+        verify(inferenceRunRepository, never()).save(any());
         verify(artifactRepository, atLeastOnce()).save(any(Artifact.class));
         verify(artifactRepository, atLeastOnce()).save(argThat(artifact -> artifact.getStorageDisposition() == ArtifactStorageDisposition.REFERENCED));
         verify(findingRepository).save(any(Finding.class));
@@ -127,7 +139,7 @@ class DemoCaseImportServiceTest {
         ArgumentCaptor<Report> reportCaptor = ArgumentCaptor.forClass(Report.class);
         verify(reportRepository).save(reportCaptor.capture());
         assertNull(reportCaptor.getValue().getReportData().executionMode());
-        assertEquals("Deterministic imported report", reportCaptor.getValue().getReportText());
+        assertEquals(expectedSeededReportText(1), reportCaptor.getValue().getReportText());
 
         verify(auditService).log(eq(7L), eq(101L), eq(AuditAction.DEMO_CASE_IMPORTED), any());
     }
@@ -150,6 +162,9 @@ class DemoCaseImportServiceTest {
 
         assertEquals(DemoImportAction.UPDATED, result.action());
         assertEquals(202L, result.caseId());
+        verify(artifactRepository).flush();
+        verify(findingRepository).flush();
+        verify(reportRepository).flush();
         verify(auditService).log(eq(7L), eq(202L), eq(AuditAction.DEMO_CASE_UPDATED), any());
     }
 
@@ -173,6 +188,79 @@ class DemoCaseImportServiceTest {
 
         assertThrows(BadRequestException.class, () -> demoCaseImportService.importManifest("admin@demo.local", manifest));
 
+        verify(caseRepository, never()).save(any(CaseEntity.class));
+    }
+
+    @Test
+    void rejectsManifestWhenFindingsExistButLesionMeshIsMissing() throws Exception {
+        DemoManifest manifest = manifestWithoutLesionMesh();
+        when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(adminUser()));
+        stubStorage(manifest);
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> demoCaseImportService.importManifest("admin@demo.local", manifest)
+        );
+
+        assertEquals("Demo manifest with findings must contain LESION_MESH artifact", exception.getMessage());
+        verify(caseRepository, never()).save(any(CaseEntity.class));
+    }
+
+    @Test
+    void rejectsManifestWhenArtifactObjectKeyIsInvalid() throws Exception {
+        DemoManifest manifest = manifest();
+        when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(adminUser()));
+        doAnswer(invocation -> {
+            String objectKey = invocation.getArgument(0);
+            if (objectKey.equals(manifest.artifacts().get(0).objectKey())) {
+                throw new IllegalArgumentException("Path escapes storage root");
+            }
+            return null;
+        }).when(storageService).validateObjectKey(any(String.class));
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> demoCaseImportService.importManifest("admin@demo.local", manifest)
+        );
+
+        assertEquals(
+                "Invalid manifest objectKey " + manifest.artifacts().get(0).objectKey(),
+                exception.getMessage()
+        );
+        verify(caseRepository, never()).save(any(CaseEntity.class));
+        verify(reportRepository, never()).save(any(Report.class));
+    }
+
+    @Test
+    void rejectsManifestWhenBeanValidationContractIsViolated() throws Exception {
+        DemoManifest manifest = manifestWithBlankReportText();
+        when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(adminUser()));
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> demoCaseImportService.importManifest("admin@demo.local", manifest)
+        );
+
+        assertEquals("Demo manifest validation failed: reportText must not be blank", exception.getMessage());
+        verify(storageService, never()).validateObjectKey(any(String.class));
+        verify(caseRepository, never()).save(any(CaseEntity.class));
+    }
+
+    @Test
+    void rejectsManifestWhenReportPayloadDriftsFromDeterministicSeededReport() throws Exception {
+        DemoManifest manifest = manifestWithChangedReportText("Non deterministic text");
+        when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(adminUser()));
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> demoCaseImportService.importManifest("admin@demo.local", manifest)
+        );
+
+        assertEquals(
+                "Demo manifest report must match deterministic seeded report: reportText mismatch",
+                exception.getMessage()
+        );
+        verify(storageService, never()).validateObjectKey(any(String.class));
         verify(caseRepository, never()).save(any(CaseEntity.class));
     }
 
@@ -212,8 +300,8 @@ class DemoCaseImportServiceTest {
                 "Synthetic attribution",
                 List.of(original, liverMask, lesionMask, liverMesh, lesionMesh),
                 List.of(new DemoManifestFinding(FindingType.LESION, "Lesion component", null, 12.4, 810.0, null)),
-                new DemoManifestReportData("One lesion component", "Single lesion", "Demo import", "Review source images"),
-                "Deterministic imported report"
+                expectedSeededReportData(1),
+                expectedSeededReportText(1)
         );
     }
 
@@ -261,6 +349,60 @@ class DemoCaseImportServiceTest {
         );
     }
 
+    private DemoManifest manifestWithoutLesionMesh() throws Exception {
+        DemoManifest manifest = manifest();
+        return new DemoManifest(
+                manifest.schemaVersion(),
+                manifest.caseSlug(),
+                manifest.origin(),
+                manifest.modality(),
+                manifest.category(),
+                manifest.patientPseudoId(),
+                manifest.sourceDataset(),
+                manifest.sourceAttribution(),
+                List.of(manifest.artifacts().get(0), manifest.artifacts().get(1), manifest.artifacts().get(2), manifest.artifacts().get(3)),
+                manifest.findings(),
+                manifest.reportData(),
+                manifest.reportText()
+        );
+    }
+
+    private DemoManifest manifestWithBlankReportText() throws Exception {
+        DemoManifest manifest = manifest();
+        return new DemoManifest(
+                manifest.schemaVersion(),
+                manifest.caseSlug(),
+                manifest.origin(),
+                manifest.modality(),
+                manifest.category(),
+                manifest.patientPseudoId(),
+                manifest.sourceDataset(),
+                manifest.sourceAttribution(),
+                manifest.artifacts(),
+                manifest.findings(),
+                manifest.reportData(),
+                " "
+        );
+    }
+
+    private DemoManifest manifestWithChangedReportText(String reportText) throws Exception {
+        DemoManifest manifest = manifest();
+        return new DemoManifest(
+                manifest.schemaVersion(),
+                manifest.caseSlug(),
+                manifest.origin(),
+                manifest.modality(),
+                manifest.category(),
+                manifest.patientPseudoId(),
+                manifest.sourceDataset(),
+                manifest.sourceAttribution(),
+                manifest.artifacts(),
+                manifest.findings(),
+                manifest.reportData(),
+                reportText
+        );
+    }
+
     private DemoManifestArtifact artifact(ArtifactType type, String objectKey, String fileName) throws Exception {
         Path path = artifactPath(fileName);
         byte[] payload = ("artifact:" + fileName).getBytes();
@@ -290,6 +432,31 @@ class DemoCaseImportServiceTest {
         User user = new User();
         user.setId(7L);
         user.setEmail("admin@demo.local");
+        user.setRole(Role.ADMIN);
         return user;
+    }
+
+    private DemoManifestReportData expectedSeededReportData(int lesionCount) {
+        return new DemoManifestReportData(
+                lesionCount > 0
+                        ? "Structured output contains " + lesionCount + " lesion component(s) derived from the lesion mask."
+                        : "Structured output contains no lesion components derived from the lesion mask.",
+                lesionCount > 0
+                        ? lesionCount + " lesion component(s) were derived from seeded artifact masks and require clinical correlation."
+                        : "No lesion components were derived from the seeded artifact masks.",
+                SEEDED_LIMITATIONS,
+                SEEDED_RECOMMENDATION
+        );
+    }
+
+    private String expectedSeededReportText(int lesionCount) {
+        DemoManifestReportData reportData = expectedSeededReportData(lesionCount);
+        return String.join(
+                "\n\n",
+                "Findings: " + reportData.findings(),
+                "Impression: " + reportData.impression(),
+                "Limitations: " + reportData.limitations(),
+                "Recommendation: " + reportData.recommendation()
+        );
     }
 }

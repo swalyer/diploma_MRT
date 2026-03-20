@@ -6,7 +6,9 @@ import com.diploma.mrt.demo.importer.DemoImportResult;
 import com.diploma.mrt.demo.manifest.DemoManifest;
 import com.diploma.mrt.dto.AdminDtos;
 import com.diploma.mrt.dto.MlDtos;
+import com.diploma.mrt.entity.CaseOrigin;
 import com.diploma.mrt.entity.ExecutionMode;
+import com.diploma.mrt.repository.CaseRepository;
 import com.diploma.mrt.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,12 +23,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin")
 public class AdminController {
     private final UserRepository userRepository;
+    private final CaseRepository caseRepository;
     private final MlClient mlClient;
     private final DemoCaseImportService demoCaseImportService;
     private final ExecutionMode executionMode;
 
-    public AdminController(UserRepository userRepository, MlClient mlClient, DemoCaseImportService demoCaseImportService, @Value("${app.ml-mode:mock}") String executionMode) {
+    public AdminController(
+            UserRepository userRepository,
+            CaseRepository caseRepository,
+            MlClient mlClient,
+            DemoCaseImportService demoCaseImportService,
+            @Value("${app.ml-mode:mock}") String executionMode
+    ) {
         this.userRepository = userRepository;
+        this.caseRepository = caseRepository;
         this.mlClient = mlClient;
         this.demoCaseImportService = demoCaseImportService;
         this.executionMode = ExecutionMode.from(executionMode);
@@ -61,6 +71,18 @@ public class AdminController {
                 mlCapabilities,
                 userRepository.findAll().stream()
                         .map(user -> new AdminDtos.AdminUserSummary(user.getId(), user.getEmail(), user.getRole().name()))
+                        .toList(),
+                caseRepository.findByOriginOrderByUpdatedAtDesc(CaseOrigin.SEEDED_DEMO).stream()
+                        .map(caseEntity -> new AdminDtos.DemoCaseSummary(
+                                caseEntity.getId(),
+                                caseEntity.getDemoCaseSlug(),
+                                caseEntity.getDemoManifestVersion(),
+                                caseEntity.getPatientPseudoId(),
+                                caseEntity.getModality(),
+                                caseEntity.getDemoCategory(),
+                                caseEntity.getSourceDataset(),
+                                caseEntity.getUpdatedAt()
+                        ))
                         .toList()
         );
     }

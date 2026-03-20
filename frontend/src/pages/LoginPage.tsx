@@ -53,9 +53,9 @@ export function LoginPage() {
               <Typography variant="h5">Sign in to workspace</Typography>
               <Typography color="text.secondary">Use your secured account to access protected case data and artifact viewers.</Typography>
               {error && <Alert severity="error">{error}</Alert>}
-              <TextField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
-              <TextField type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth />
-              <Button variant="contained" size="large" onClick={login}>Sign in</Button>
+              <TextField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth inputProps={{ 'data-testid': 'login-email' }} />
+              <TextField type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth inputProps={{ 'data-testid': 'login-password' }} />
+              <Button variant="contained" size="large" onClick={login} data-testid="login-submit">Sign in</Button>
             </Stack>
           </CardContent>
         </Card>

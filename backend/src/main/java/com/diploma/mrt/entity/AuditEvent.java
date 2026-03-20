@@ -22,7 +22,7 @@ public class AuditEvent {
     @Column(nullable = false)
     private AuditAction action;
     @Convert(converter = ProcessDetailsJsonConverter.class)
-    @Column(columnDefinition = "text")
+    @Column(name = "details_json", columnDefinition = "text")
     private ProcessDetails details;
     @Column(nullable = false)
     private Instant createdAt;

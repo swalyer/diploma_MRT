@@ -4,6 +4,7 @@ import com.diploma.mrt.entity.ArtifactType;
 import com.diploma.mrt.entity.AuditAction;
 import com.diploma.mrt.entity.CaseStatus;
 import com.diploma.mrt.entity.CaseOrigin;
+import com.diploma.mrt.entity.CaseResultSource;
 import com.diploma.mrt.entity.DemoCategory;
 import com.diploma.mrt.entity.ExecutionMode;
 import com.diploma.mrt.entity.FindingType;
@@ -29,6 +30,7 @@ public class CaseDtos {
     public record ReportResponse(String reportText, ReportData reportData) {}
     public record StageAuditEvent(AuditAction action, Instant at, ProcessDetails details) {}
     public record StatusResponse(Long caseId, CaseStatus status, InferenceStatus inferenceStatus, ExecutionMode executionMode, String modelVersion,
-                                 MlMetrics metrics, ProcessDetails failureDetails, List<StageAuditEvent> stageAuditTrail) {}
+                                 MlMetrics metrics, ProcessDetails failureDetails, boolean resultReady, CaseResultSource resultSource,
+                                 List<StageAuditEvent> stageAuditTrail) {}
     public record Viewer3DResponse(Long liverMeshArtifactId, Long lesionMeshArtifactId) {}
 }

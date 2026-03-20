@@ -1,8 +1,6 @@
 package com.diploma.mrt.service.impl;
 
 import com.diploma.mrt.entity.Artifact;
-import com.diploma.mrt.entity.ArtifactStorageDisposition;
-import com.diploma.mrt.entity.ArtifactType;
 import com.diploma.mrt.entity.CaseEntity;
 import com.diploma.mrt.entity.Finding;
 import com.diploma.mrt.entity.Report;
@@ -16,22 +14,12 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 @Service
 public class CaseMaterializationService {
-    private static final Set<ArtifactType> GENERATED_OUTPUT_TYPES = EnumSet.of(
-            ArtifactType.ENHANCED,
-            ArtifactType.ENHANCED_VOLUME,
-            ArtifactType.LIVER_MASK,
-            ArtifactType.LESION_MASK,
-            ArtifactType.LIVER_MESH,
-            ArtifactType.LESION_MESH
-    );
-
     private final ArtifactRepository artifactRepository;
     private final FindingRepository findingRepository;
     private final ReportRepository reportRepository;
@@ -59,6 +47,9 @@ public class CaseMaterializationService {
         artifactRepository.deleteAll(artifactsToReplace);
         findingRepository.deleteByCaseEntityId(caseEntity.getId());
         reportRepository.deleteByCaseEntityId(caseEntity.getId());
+        artifactRepository.flush();
+        findingRepository.flush();
+        reportRepository.flush();
 
         Instant materializedAt = Instant.now();
         Set<String> retainedObjectKeys = new LinkedHashSet<>();
@@ -105,7 +96,7 @@ public class CaseMaterializationService {
     ) {
         return switch (artifactReplaceMode) {
             case GENERATED_ONLY -> existingArtifacts.stream()
-                    .filter(artifact -> GENERATED_OUTPUT_TYPES.contains(artifact.getType()))
+                    .filter(artifact -> artifact.getType() != null && artifact.getType().isGeneratedOutput())
                     .toList();
             case ALL_CASE_ARTIFACTS -> existingArtifacts;
         };
@@ -136,7 +127,6 @@ public class CaseMaterializationService {
     }
 
     private boolean isManagedArtifact(Artifact artifact) {
-        return artifact.getStorageDisposition() == null
-                || artifact.getStorageDisposition() == ArtifactStorageDisposition.MANAGED;
+        return artifact.isManaged();
     }
 }

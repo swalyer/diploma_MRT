@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "v1",
+  "caseSlug": "ct-normal-001",
+  "origin": "SEEDED_DEMO",
+  "modality": "CT",
+  "category": "NORMAL",
+  "patientPseudoId": "demo-ct-normal-001",
+  "sourceDataset": "Repository CT smoke fixture",
+  "sourceAttribution": "Derived from the tiny synthetic CT smoke fixture committed in this repository for integration testing and seeded demo import validation.",
+  "artifacts": [
+    {
+      "type": "ORIGINAL_STUDY",
+      "objectKey": "demo/cases/ct-normal-001/input.nii.gz",
+      "fileName": "input.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "42097dfbab9d2a036b41ae5c97a359591cf2cf5c3f8dc6ca6455c0b8a7f22696",
+      "sizeBytes": 346451
+    },
+    {
+      "type": "ENHANCED_VOLUME",
+      "objectKey": "demo/cases/ct-normal-001/enhanced.nii.gz",
+      "fileName": "enhanced.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "4d32ba2ab4072b354986099a0a3ec285cbaa556aece3816632aa316cd1d8db8c",
+      "sizeBytes": 213195
+    },
+    {
+      "type": "LIVER_MASK",
+      "objectKey": "demo/cases/ct-normal-001/liver_mask.nii.gz",
+      "fileName": "liver_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "a6931580e876dcf93ca64ab981ce8e76399a0b0944002192791e358775122373",
+      "sizeBytes": 7119
+    },
+    {
+      "type": "LESION_MASK",
+      "objectKey": "demo/cases/ct-normal-001/lesion_mask.nii.gz",
+      "fileName": "lesion_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "c119e55d4e935095d50a515f370809ca342116e4ce9188e7f27a86a9a5f52373",
+      "sizeBytes": 868
+    },
+    {
+      "type": "LIVER_MESH",
+      "objectKey": "demo/cases/ct-normal-001/liver.glb",
+      "fileName": "liver.glb",
+      "mimeType": "model/gltf-binary",
+      "sha256": "65ee838e88b3f443260065eeb2aa0f8bbf3ecbae7d4e330986076f4a754bd18f",
+      "sizeBytes": 244752
+    }
+  ],
+  "findings": [],
+  "reportData": {
+    "findings": "Structured output contains no lesion components derived from the lesion mask.",
+    "impression": "No lesion components were derived from the seeded artifact masks.",
+    "limitations": "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.",
+    "recommendation": "Correlate with source images and radiologist review before clinical use."
+  },
+  "reportText": "Findings: Structured output contains no lesion components derived from the lesion mask.\n\nImpression: No lesion components were derived from the seeded artifact masks.\n\nLimitations: Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.\n\nRecommendation: Correlate with source images and radiologist review before clinical use."
+}

@@ -1,9 +1,9 @@
 package com.diploma.mrt.client;
 
-import com.diploma.mrt.client.contract.MlInferenceRequest;
-import com.diploma.mrt.client.contract.MlInferenceResponse;
 import com.diploma.mrt.dto.MlDtos;
-import com.diploma.mrt.entity.ExecutionMode;
+import com.diploma.mrt.integration.ml.contract.MlContractInferenceRequest;
+import com.diploma.mrt.integration.ml.contract.MlContractInferenceResponse;
+import com.diploma.mrt.integration.ml.contract.MlContractTypes;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -16,7 +16,7 @@ import java.time.Duration;
 @Component
 public class MlClient {
     private final RestClient restClient;
-    private final ExecutionMode defaultExecutionMode;
+    private final MlContractTypes.ExecutionMode defaultExecutionMode;
 
     public MlClient(@Value("${app.ml-url}") String baseUrl, @Value("${app.ml-mode:mock}") String executionMode) {
         HttpClient httpClient = HttpClient.newBuilder()
@@ -29,12 +29,12 @@ public class MlClient {
                 .baseUrl(baseUrl)
                 .requestFactory(requestFactory)
                 .build();
-        this.defaultExecutionMode = ExecutionMode.from(executionMode);
+        this.defaultExecutionMode = MlContractTypes.ExecutionMode.fromWireValue(executionMode);
     }
 
-    public MlInferenceResponse infer(MlInferenceRequest request) {
-        MlInferenceRequest normalizedRequest = request.executionMode() == null
-                ? new MlInferenceRequest(
+    public MlContractInferenceResponse infer(MlContractInferenceRequest request) {
+        MlContractInferenceRequest normalizedRequest = request.executionMode() == null
+                ? new MlContractInferenceRequest(
                 request.schemaVersion(),
                 request.caseId(),
                 request.modality(),
@@ -47,7 +47,7 @@ public class MlClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(normalizedRequest)
                 .retrieve()
-                .body(MlInferenceResponse.class);
+                .body(MlContractInferenceResponse.class);
     }
 
     public MlDtos.MlHealthResponse health() {

@@ -6,7 +6,6 @@ import com.diploma.mrt.entity.ArtifactType;
 import com.diploma.mrt.entity.AuditAction;
 import com.diploma.mrt.entity.CaseEntity;
 import com.diploma.mrt.entity.CaseOrigin;
-import com.diploma.mrt.entity.CaseStatus;
 import com.diploma.mrt.entity.User;
 import com.diploma.mrt.exception.BadRequestException;
 import com.diploma.mrt.exception.ConflictException;
@@ -19,6 +18,10 @@ import com.diploma.mrt.service.impl.CaseMaterializationService;
 import com.diploma.mrt.service.materialization.CaseMaterialization;
 import com.diploma.mrt.service.materialization.DemoManifestMaterializationMapper;
 import com.diploma.mrt.model.ProcessDetails;
+import com.diploma.mrt.report.SeededDemoDeterministicReport;
+import com.diploma.mrt.report.SeededDemoDeterministicReportBuilder;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +52,7 @@ public class DemoCaseImportService {
     private final CaseAccessService caseAccessService;
     private final DemoManifestMaterializationMapper materializationMapper;
     private final CaseMaterializationService caseMaterializationService;
+    private final Validator validator;
 
     public DemoCaseImportService(
             CaseRepository caseRepository,
@@ -57,7 +61,8 @@ public class DemoCaseImportService {
             AuditService auditService,
             CaseAccessService caseAccessService,
             DemoManifestMaterializationMapper materializationMapper,
-            CaseMaterializationService caseMaterializationService
+            CaseMaterializationService caseMaterializationService,
+            Validator validator
     ) {
         this.caseRepository = caseRepository;
         this.inferenceRunRepository = inferenceRunRepository;
@@ -66,12 +71,14 @@ public class DemoCaseImportService {
         this.caseAccessService = caseAccessService;
         this.materializationMapper = materializationMapper;
         this.caseMaterializationService = caseMaterializationService;
+        this.validator = validator;
     }
 
     @Transactional
     public DemoImportResult importManifest(String adminEmail, DemoManifest manifest) {
         User adminUser = caseAccessService.findUser(adminEmail);
         validateManifest(manifest);
+        validateDeterministicReport(manifest);
         validateArtifacts(manifest);
 
         Optional<CaseEntity> existingCase = caseRepository.findByDemoCaseSlugAndDemoManifestVersion(
@@ -81,18 +88,23 @@ public class DemoCaseImportService {
 
         DemoImportAction action = existingCase.isPresent() ? DemoImportAction.UPDATED : DemoImportAction.CREATED;
         CaseEntity caseEntity = existingCase.orElseGet(CaseEntity::new);
-        if (caseEntity.getCreatedAt() == null) {
-            caseEntity.setCreatedAt(Instant.now());
-        }
-        if (caseEntity.getCreatedBy() == null) {
-            caseEntity.setCreatedBy(adminUser);
-        }
-
-        applyManifest(caseEntity, manifest);
+        Instant importedAt = Instant.now();
+        caseEntity.applySeededImport(
+                adminUser,
+                manifest.patientPseudoId(),
+                manifest.modality(),
+                manifest.category(),
+                manifest.caseSlug(),
+                manifest.schemaVersion().value(),
+                manifest.sourceDataset(),
+                manifest.sourceAttribution(),
+                importedAt
+        );
         CaseEntity savedCase = caseRepository.save(caseEntity);
         inferenceRunRepository.deleteByCaseEntityId(savedCase.getId());
         CaseMaterialization materialization = materializationMapper.toMaterialization(manifest);
         caseMaterializationService.replace(savedCase, materialization);
+        SeededDemoDeterministicReport deterministicReport = SeededDemoDeterministicReportBuilder.build(manifest);
 
         AuditAction auditAction = action == DemoImportAction.CREATED
                 ? AuditAction.DEMO_CASE_IMPORTED
@@ -120,16 +132,32 @@ public class DemoCaseImportService {
                 savedCase.getOrigin(),
                 manifest.artifacts().size(),
                 manifest.findings().size(),
-                new DemoImportReport(manifest.reportData(), manifest.reportText())
+                new DemoImportReport(deterministicReport.manifestReportData(), deterministicReport.reportText())
         );
     }
 
     private void validateManifest(DemoManifest manifest) {
+        List<String> validationErrors = validator.validate(manifest).stream()
+                .map(this::formatViolation)
+                .sorted()
+                .toList();
+        if (!validationErrors.isEmpty()) {
+            throw new BadRequestException("Demo manifest validation failed: " + String.join("; ", validationErrors));
+        }
         if (manifest.origin() != CaseOrigin.SEEDED_DEMO) {
             throw new BadRequestException("Demo manifest origin must be SEEDED_DEMO");
         }
         if (manifest.caseSlug().isBlank()) {
             throw new BadRequestException("Demo manifest caseSlug must not be blank");
+        }
+    }
+
+    private void validateDeterministicReport(DemoManifest manifest) {
+        List<String> mismatches = SeededDemoDeterministicReportBuilder.describeMismatches(manifest);
+        if (!mismatches.isEmpty()) {
+            throw new BadRequestException(
+                    "Demo manifest report must match deterministic seeded report: " + String.join("; ", mismatches)
+            );
         }
     }
 
@@ -142,14 +170,14 @@ public class DemoCaseImportService {
             if (duplicate != null) {
                 throw new ConflictException("Duplicate artifact type in manifest: " + artifact.type());
             }
-            if (artifact.type() == ArtifactType.ORIGINAL_STUDY || artifact.type() == ArtifactType.ORIGINAL_INPUT) {
+            if (artifact.type().isSourceStudy()) {
                 sourceStudy = artifact;
             }
             validateArtifactBinary(artifact);
         }
 
         if (sourceStudy == null) {
-            throw new BadRequestException("Demo manifest must contain ORIGINAL_STUDY or ORIGINAL_INPUT artifact");
+            throw new BadRequestException("Demo manifest must contain ORIGINAL_STUDY artifact");
         }
         for (ArtifactType requiredType : REQUIRED_ARTIFACT_TYPES) {
             if (!artifactsByType.containsKey(requiredType)) {
@@ -202,16 +230,7 @@ public class DemoCaseImportService {
         }
     }
 
-    private void applyManifest(CaseEntity caseEntity, DemoManifest manifest) {
-        caseEntity.setPatientPseudoId(manifest.patientPseudoId());
-        caseEntity.setModality(manifest.modality());
-        caseEntity.setStatus(CaseStatus.COMPLETED);
-        caseEntity.setOrigin(CaseOrigin.SEEDED_DEMO);
-        caseEntity.setDemoCategory(manifest.category());
-        caseEntity.setDemoCaseSlug(manifest.caseSlug());
-        caseEntity.setDemoManifestVersion(manifest.schemaVersion().value());
-        caseEntity.setSourceDataset(manifest.sourceDataset());
-        caseEntity.setSourceAttribution(manifest.sourceAttribution());
-        caseEntity.setUpdatedAt(Instant.now());
+    private String formatViolation(ConstraintViolation<?> violation) {
+        return violation.getPropertyPath() + " " + violation.getMessage();
     }
 }

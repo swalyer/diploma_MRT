@@ -98,6 +98,7 @@ export function CasesPage() {
               <TextField select label="Status" value={status} onChange={(e) => setStatus(e.target.value)} sx={{ minWidth: 180 }}>
                 <MenuItem value="ALL">All</MenuItem>
                 <MenuItem value="CREATED">CREATED</MenuItem>
+                <MenuItem value="UPLOADED">UPLOADED</MenuItem>
                 <MenuItem value="PROCESSING">PROCESSING</MenuItem>
                 <MenuItem value="COMPLETED">COMPLETED</MenuItem>
                 <MenuItem value="FAILED">FAILED</MenuItem>
@@ -109,8 +110,8 @@ export function CasesPage() {
           <Card sx={{ p: 2, height: '100%' }}>
             <Typography variant="subtitle1" fontWeight={700}>Truth labels</Typography>
             <Stack mt={1} spacing={1}>
-              <Chip size="small" label="Verified from API" color="success" />
-              <Chip size="small" label="Inferred from artifacts" color="warning" />
+              <Chip size="small" label="Authoritative API state" color="success" />
+              <Chip size="small" label="Artifact availability" color="warning" />
               <Chip size="small" label="Unavailable / pending" />
             </Stack>
           </Card>
@@ -164,8 +165,16 @@ export function CasesPage() {
                   <Typography variant="body2" color="text.secondary">Pseudo ID: {c.patientPseudoId}</Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Chip size="small" color={c.status === 'COMPLETED' ? 'success' : c.status === 'FAILED' ? 'error' : 'default'} label={c.status} />
-                    <Chip size="small" variant="outlined" label={c.modality === 'MRI' ? 'MRI experimental' : 'CT primary'} />
-                    <Chip size="small" variant="outlined" color="warning" label="Execution mode inferred" />
+                    <Chip size="small" variant="outlined" label={c.modality === 'MRI' ? 'MRI heuristic-supported' : 'CT primary'} />
+                    {c.origin === 'SEEDED_DEMO' && (
+                      <Chip size="small" color="secondary" label={c.demoCategory ? `Seeded demo · ${c.demoCategory}` : 'Seeded demo'} />
+                    )}
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={c.executionMode ? 'primary' : 'default'}
+                      label={c.executionMode ? `Execution mode: ${c.executionMode}` : c.origin === 'SEEDED_DEMO' ? 'Execution mode: not applicable' : 'Execution mode: not run yet'}
+                    />
                   </Stack>
                   <Typography variant="caption" color="text.secondary">Created {new Date(c.createdAt).toLocaleString()}</Typography>
                 </Stack>

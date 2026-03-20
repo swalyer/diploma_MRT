@@ -4,9 +4,10 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      APP_JWT_SECRET: ${APP_JWT_SECRET:-replace-with-long-random-secret-at-least-32-bytes}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET must be set}
       APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-https://your-edge-host}
       APP_ML_MODE: ${APP_ML_MODE:-mock}
+      APP_DEMO_USERS_ENABLED: ${APP_DEMO_USERS_ENABLED:-false}
       APP_ML_URL: http://ml-service:8000
 
       APP_DB_PRIMARY_HOST: ${APP_DB_PRIMARY_HOST:-data.internal}
