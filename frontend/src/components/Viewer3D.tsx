@@ -1,8 +1,49 @@
 import { Alert, Box, Button, Card, FormControlLabel, Grid2, Slider, Stack, Switch, Typography } from '@mui/material'
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
+import { authorizedFetch } from '../api/client'
+import { FINDING_TYPES, type FindingItem } from '../types'
+
+function useAuthorizedObjectUrl(path: string | null) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!path) {
+      setObjectUrl(null)
+      setError(null)
+      return
+    }
+    let active = true
+    let nextObjectUrl: string | null = null
+    const load = async () => {
+      try {
+        const response = await authorizedFetch(path)
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const blob = await response.blob()
+        nextObjectUrl = URL.createObjectURL(blob)
+        if (active) {
+          setObjectUrl(nextObjectUrl)
+          setError(null)
+        }
+      } catch (loadError) {
+        if (active) {
+          setObjectUrl(null)
+          setError(loadError instanceof Error ? loadError.message : 'Mesh load failed')
+        }
+      }
+    }
+    load().catch(() => setError('Mesh load failed'))
+    return () => {
+      active = false
+      if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl)
+    }
+  }, [path])
+
+  return { objectUrl, error }
+}
 
 function MeshAsset({ url, color, opacity, onSelect }: { url: string; color: string; opacity: number; onSelect: () => void }) {
   const gltf = useGLTF(url)
@@ -18,12 +59,14 @@ function MeshAsset({ url, color, opacity, onSelect }: { url: string; color: stri
   return <primitive object={scene} onClick={onSelect} />
 }
 
-export function Viewer3D({ liverArtifactId, lesionArtifactId }: { liverArtifactId: number | null; lesionArtifactId: number | null }) {
+export function Viewer3D({ liverArtifactId, lesionArtifactId, findings }: { liverArtifactId: number | null; lesionArtifactId: number | null; findings: FindingItem[] }) {
   const [opacity, setOpacity] = useState(0.45)
   const [showLiver, setShowLiver] = useState(true)
   const [showLesion, setShowLesion] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
   const [canvasKey, setCanvasKey] = useState(0)
+  const liverMesh = useAuthorizedObjectUrl(liverArtifactId ? `/api/files/${liverArtifactId}/download` : null)
+  const lesionMesh = useAuthorizedObjectUrl(lesionArtifactId ? `/api/files/${lesionArtifactId}/download` : null)
 
   const exportShot = () => {
     const canvas = document.querySelector('canvas')
@@ -47,7 +90,9 @@ export function Viewer3D({ liverArtifactId, lesionArtifactId }: { liverArtifactI
     )
   }
 
-  return <Stack spacing={1.5}>
+  const suspiciousZones = findings.filter((finding) => finding.type === FINDING_TYPES.LESION)
+
+  return <Stack spacing={1.5} data-testid="viewer-3d-root">
     <Grid2 container spacing={1}>
       <Grid2 size={{ xs: 12, lg: 8 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', md: 'center' }}>
@@ -60,24 +105,38 @@ export function Viewer3D({ liverArtifactId, lesionArtifactId }: { liverArtifactI
         </Stack>
       </Grid2>
       <Grid2 size={{ xs: 12, lg: 4 }}>
-        <Alert severity="info" sx={{ py: 0 }}>Format support: GLB/GLTF only</Alert>
+        <Alert severity="info" sx={{ py: 0 }} data-testid="viewer-3d-format-alert">Format support: GLB/GLTF only</Alert>
       </Grid2>
     </Grid2>
 
     {!lesionArtifactId && <Alert severity="warning">Lesion mesh unavailable. Liver mesh remains fully viewable; lesion interaction metadata is partial.</Alert>}
+    {liverMesh.error && <Alert severity="error">Failed to load liver mesh: {liverMesh.error}</Alert>}
+    {lesionMesh.error && <Alert severity="warning">Failed to load lesion mesh: {lesionMesh.error}</Alert>}
 
-    <Box sx={{ height: 500, borderRadius: 2, overflow: 'hidden', border: '1px solid #d4dce8' }}>
+    <Box data-testid="viewer-3d-canvas" sx={{ height: 500, borderRadius: 2, overflow: 'hidden', border: '1px solid #d4dce8' }}>
       <Canvas key={canvasKey} camera={{ position: [150, 120, 150], fov: 40 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[1, 1, 1]} intensity={1} />
         <Suspense fallback={null}>
-          {showLiver && <MeshAsset url={`http://localhost:8080/api/files/${liverArtifactId}/download`} color="#879cb2" opacity={opacity} onSelect={() => setSelected('Liver mesh selected')} />}
-          {showLesion && lesionArtifactId && <MeshAsset url={`http://localhost:8080/api/files/${lesionArtifactId}/download`} color="#ef3d58" opacity={0.95} onSelect={() => setSelected('Lesion selected · detailed metadata endpoint not wired')} />}
+          {showLiver && liverMesh.objectUrl && <MeshAsset url={liverMesh.objectUrl} color="#879cb2" opacity={opacity} onSelect={() => setSelected('Liver mesh selected')} />}
+          {showLesion && lesionArtifactId && lesionMesh.objectUrl && <MeshAsset url={lesionMesh.objectUrl} color="#ef3d58" opacity={0.95} onSelect={() => setSelected('Lesion selected · detailed metadata endpoint not wired')} />}
         </Suspense>
         <OrbitControls makeDefault />
       </Canvas>
     </Box>
 
     {selected && <Alert severity="success">{selected}</Alert>}
+    {suspiciousZones.length > 0 && (
+      <Card sx={{ p: 2 }}>
+        <Stack spacing={1}>
+          <Typography variant="subtitle1">Suspicious zones</Typography>
+          {suspiciousZones.map((finding) => (
+            <Alert key={finding.id} severity={finding.confidence && finding.confidence >= 0.5 ? 'error' : 'warning'}>
+              {finding.label} · confidence {finding.confidence ?? 'N/A'} · volume {finding.volumeMm3 ?? 'N/A'} mm3
+            </Alert>
+          ))}
+        </Stack>
+      </Card>
+    )}
   </Stack>
 }

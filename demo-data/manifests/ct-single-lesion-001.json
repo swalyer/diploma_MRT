@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "v1",
+  "caseSlug": "ct-single-lesion-001",
+  "origin": "SEEDED_DEMO",
+  "modality": "CT",
+  "category": "SINGLE_LESION",
+  "patientPseudoId": "demo-ct-single-001",
+  "sourceDataset": "Repository CT smoke fixture",
+  "sourceAttribution": "Derived from the tiny synthetic CT smoke fixture committed in this repository; single-lesion mask and mesh are deterministically carved from the largest connected component.",
+  "artifacts": [
+    {
+      "type": "ORIGINAL_STUDY",
+      "objectKey": "demo/cases/ct-single-lesion-001/input.nii.gz",
+      "fileName": "input.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "42097dfbab9d2a036b41ae5c97a359591cf2cf5c3f8dc6ca6455c0b8a7f22696",
+      "sizeBytes": 346451
+    },
+    {
+      "type": "ENHANCED_VOLUME",
+      "objectKey": "demo/cases/ct-single-lesion-001/enhanced.nii.gz",
+      "fileName": "enhanced.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "4d32ba2ab4072b354986099a0a3ec285cbaa556aece3816632aa316cd1d8db8c",
+      "sizeBytes": 213195
+    },
+    {
+      "type": "LIVER_MASK",
+      "objectKey": "demo/cases/ct-single-lesion-001/liver_mask.nii.gz",
+      "fileName": "liver_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "a6931580e876dcf93ca64ab981ce8e76399a0b0944002192791e358775122373",
+      "sizeBytes": 7119
+    },
+    {
+      "type": "LESION_MASK",
+      "objectKey": "demo/cases/ct-single-lesion-001/lesion_mask.nii.gz",
+      "fileName": "lesion_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "5c6b88c93b95050cc4c6094493ef9d05d11c2e9d7199c2c73102845039e7cd2d",
+      "sizeBytes": 1053
+    },
+    {
+      "type": "LIVER_MESH",
+      "objectKey": "demo/cases/ct-single-lesion-001/liver.glb",
+      "fileName": "liver.glb",
+      "mimeType": "model/gltf-binary",
+      "sha256": "65ee838e88b3f443260065eeb2aa0f8bbf3ecbae7d4e330986076f4a754bd18f",
+      "sizeBytes": 244752
+    },
+    {
+      "type": "LESION_MESH",
+      "objectKey": "demo/cases/ct-single-lesion-001/lesion.glb",
+      "fileName": "lesion.glb",
+      "mimeType": "model/gltf-binary",
+      "sha256": "f76182df95cf14b91064219351853ff1c6fa0d5d799d7bf37d44b31cb26c090d",
+      "sizeBytes": 712
+    }
+  ],
+  "findings": [
+    {
+      "type": "LESION",
+      "label": "Lesion component #8",
+      "confidence": null,
+      "sizeMm": 36.0,
+      "volumeMm3": 2666.4,
+      "location": {
+        "centroid": [
+          68.386,
+          38.568,
+          16.426
+        ],
+        "bbox": {
+          "min": [
+            61,
+            31,
+            11
+          ],
+          "max": [
+            74,
+            48,
+            19
+          ]
+        },
+        "extent": [
+          14,
+          18,
+          9
+        ]
+      }
+    }
+  ],
+  "reportData": {
+    "findings": "Structured output contains 1 lesion component(s) derived from the lesion mask.",
+    "impression": "1 lesion component(s) were derived from seeded artifact masks and require clinical correlation.",
+    "limitations": "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.",
+    "recommendation": "Correlate with source images and radiologist review before clinical use."
+  },
+  "reportText": "Findings: Structured output contains 1 lesion component(s) derived from the lesion mask.\n\nImpression: 1 lesion component(s) were derived from seeded artifact masks and require clinical correlation.\n\nLimitations: Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.\n\nRecommendation: Correlate with source images and radiologist review before clinical use."
+}

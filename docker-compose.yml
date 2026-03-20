@@ -25,9 +25,10 @@ services:
   backend:
     build: ./backend
     environment:
-      APP_JWT_SECRET: ${APP_JWT_SECRET:-replace-with-long-random-secret-at-least-32-bytes}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET must be set}
       APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-http://localhost}
       APP_ML_MODE: ${APP_ML_MODE:-mock}
+      APP_DEMO_USERS_ENABLED: ${APP_DEMO_USERS_ENABLED:-true}
       APP_ML_URL: http://ml-service:8000
 
       APP_DB_PRIMARY_HOST: ${APP_DB_PRIMARY_HOST:-postgres-primary}
@@ -91,7 +92,26 @@ services:
       - obs_net
 
   ml-service:
-    build: ./ml-service
+    build:
+      context: ./ml-service
+      target: runtime
+    environment:
+      ML_MODE: ${ML_MODE:-mock}
+      ML_ARTIFACTS_ROOT: /data/storage
+      ML_MODELS_CONFIG_PATH: /app/config/models.real.example.yml
+    volumes:
+      - ./storage:/data/storage
+    networks:
+      - app_net
+      - data_net
+      - obs_net
+
+  ml-service-test:
+    build:
+      context: ./ml-service
+      target: test
+    profiles:
+      - test
     environment:
       ML_MODE: ${ML_MODE:-mock}
       ML_ARTIFACTS_ROOT: /data/storage

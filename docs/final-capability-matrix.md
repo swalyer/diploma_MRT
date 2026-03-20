@@ -17,7 +17,7 @@ Legend: Implemented / Partial / Missing / Broken / Inferred only
 | Storage | Absolute local path leak via API | Implemented (no leak) | API exposes artifact id + download URL only. |
 | ML | Mock pipeline | Implemented | Tests passing. |
 | ML | CT real path | Partial | Depends on external model binaries/weights. |
-| ML | MRI path | Partial/Experimental | Must remain explicitly experimental. |
+| ML | MRI path | Implemented/Heuristic-supported | Works without bundled MRI weights; quality remains below dedicated model-backed path. |
 | Viewer 2D | Artifact-backed NIfTI | Implemented | Production build passes with nifti dependency. |
 | Viewer 2D | OHIF DICOM-native | Missing | Not wired end-to-end yet. |
 | Viewer 3D | Artifact-backed mesh render | Implemented | Uses actual mesh artifacts only. |

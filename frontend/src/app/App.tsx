@@ -47,17 +47,27 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
   return children
 }
 
+function AdminRoute({ children }: { children: React.ReactElement }) {
+  const token = useAuthStore((s) => s.token)
+  const role = useAuthStore((s) => s.role)
+  const location = useLocation()
+  if (!token) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (role !== 'ROLE_ADMIN') return <Navigate to="/cases" replace />
+  return children
+}
+
 function TopNav() {
   const navigate = useNavigate()
   const location = useLocation()
   const token = useAuthStore((s) => s.token)
+  const role = useAuthStore((s) => s.role)
   const clearToken = useAuthStore((s) => s.clearToken)
 
   const crumbs = location.pathname.split('/').filter(Boolean)
   const navItems = [
     { label: 'Cases', path: '/cases' },
     { label: 'Intake', path: '/cases/new' },
-    { label: 'Admin', path: '/admin' }
+    ...(role === 'ROLE_ADMIN' ? [{ label: 'Admin', path: '/admin' }] : [])
   ]
 
   return (
@@ -82,7 +92,7 @@ function TopNav() {
                 {item.label}
               </Button>
             ))}
-            <Chip size="small" color="primary" label="Authenticated" />
+            <Chip size="small" color="primary" label={role === 'ROLE_ADMIN' ? 'Admin' : 'Doctor'} />
             <Button variant="outlined" onClick={() => { clearToken(); navigate('/login') }}>Logout</Button>
           </Stack>
         )}
@@ -120,7 +130,7 @@ export function App() {
           <Route path="/cases" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
           <Route path="/cases/new" element={<ProtectedRoute><CreateCasePage /></ProtectedRoute>} />
           <Route path="/cases/:id" element={<ProtectedRoute><CaseDetailsPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           <Route path="*" element={<Navigate to="/cases" replace />} />
         </Routes>
       </Container>

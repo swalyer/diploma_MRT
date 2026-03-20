@@ -1,0 +1,410 @@
+{
+  "schemaVersion": "v1",
+  "caseSlug": "ct-multifocal-001",
+  "origin": "SEEDED_DEMO",
+  "modality": "CT",
+  "category": "MULTIFOCAL",
+  "patientPseudoId": "demo-ct-multifocal-001",
+  "sourceDataset": "Repository CT smoke fixture",
+  "sourceAttribution": "Derived from the tiny synthetic CT smoke fixture committed in this repository; multifocal findings come from connected components in the committed lesion mask.",
+  "artifacts": [
+    {
+      "type": "ORIGINAL_STUDY",
+      "objectKey": "demo/cases/ct-multifocal-001/input.nii.gz",
+      "fileName": "input.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "42097dfbab9d2a036b41ae5c97a359591cf2cf5c3f8dc6ca6455c0b8a7f22696",
+      "sizeBytes": 346451
+    },
+    {
+      "type": "ENHANCED_VOLUME",
+      "objectKey": "demo/cases/ct-multifocal-001/enhanced.nii.gz",
+      "fileName": "enhanced.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "4d32ba2ab4072b354986099a0a3ec285cbaa556aece3816632aa316cd1d8db8c",
+      "sizeBytes": 213195
+    },
+    {
+      "type": "LIVER_MASK",
+      "objectKey": "demo/cases/ct-multifocal-001/liver_mask.nii.gz",
+      "fileName": "liver_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "a6931580e876dcf93ca64ab981ce8e76399a0b0944002192791e358775122373",
+      "sizeBytes": 7119
+    },
+    {
+      "type": "LESION_MASK",
+      "objectKey": "demo/cases/ct-multifocal-001/lesion_mask.nii.gz",
+      "fileName": "lesion_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "5b9aa50a8c5c72b85aa633cb49cd572a000899d1697efb77f50803970f96267b",
+      "sizeBytes": 4705
+    },
+    {
+      "type": "LIVER_MESH",
+      "objectKey": "demo/cases/ct-multifocal-001/liver.glb",
+      "fileName": "liver.glb",
+      "mimeType": "model/gltf-binary",
+      "sha256": "65ee838e88b3f443260065eeb2aa0f8bbf3ecbae7d4e330986076f4a754bd18f",
+      "sizeBytes": 244752
+    },
+    {
+      "type": "LESION_MESH",
+      "objectKey": "demo/cases/ct-multifocal-001/lesion.glb",
+      "fileName": "lesion.glb",
+      "mimeType": "model/gltf-binary",
+      "sha256": "0144e8cfa0c524b0ab68f500fb06b6a852533e33043b8a48dfff5902f2e027d6",
+      "sizeBytes": 104364
+    }
+  ],
+  "findings": [
+    {
+      "type": "LESION",
+      "label": "Lesion component #8",
+      "confidence": null,
+      "sizeMm": 36.0,
+      "volumeMm3": 2666.4,
+      "location": {
+        "centroid": [
+          68.386,
+          38.568,
+          16.426
+        ],
+        "bbox": {
+          "min": [
+            61,
+            31,
+            11
+          ],
+          "max": [
+            74,
+            48,
+            19
+          ]
+        },
+        "extent": [
+          14,
+          18,
+          9
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #1",
+      "confidence": null,
+      "sizeMm": 26.0,
+      "volumeMm3": 2420.0,
+      "location": {
+        "centroid": [
+          70.996,
+          49.655,
+          7.287
+        ],
+        "bbox": {
+          "min": [
+            66,
+            43,
+            4
+          ],
+          "max": [
+            75,
+            55,
+            12
+          ]
+        },
+        "extent": [
+          10,
+          13,
+          9
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #3",
+      "confidence": null,
+      "sizeMm": 30.0,
+      "volumeMm3": 2041.6,
+      "location": {
+        "centroid": [
+          64.151,
+          60.892,
+          10.543
+        ],
+        "bbox": {
+          "min": [
+            60,
+            54,
+            6
+          ],
+          "max": [
+            70,
+            68,
+            15
+          ]
+        },
+        "extent": [
+          11,
+          15,
+          10
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #2",
+      "confidence": null,
+      "sizeMm": 24.0,
+      "volumeMm3": 1892.0,
+      "location": {
+        "centroid": [
+          55.056,
+          50.367,
+          8.488
+        ],
+        "bbox": {
+          "min": [
+            51,
+            44,
+            6
+          ],
+          "max": [
+            59,
+            55,
+            13
+          ]
+        },
+        "extent": [
+          9,
+          12,
+          8
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #4",
+      "confidence": null,
+      "sizeMm": 20.0,
+      "volumeMm3": 1012.0,
+      "location": {
+        "centroid": [
+          63.287,
+          32.113,
+          10.704
+        ],
+        "bbox": {
+          "min": [
+            60,
+            28,
+            8
+          ],
+          "max": [
+            66,
+            37,
+            15
+          ]
+        },
+        "extent": [
+          7,
+          10,
+          8
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #7",
+      "confidence": null,
+      "sizeMm": 17.6,
+      "volumeMm3": 554.4,
+      "location": {
+        "centroid": [
+          93.238,
+          55.984,
+          13.683
+        ],
+        "bbox": {
+          "min": [
+            91,
+            53,
+            10
+          ],
+          "max": [
+            95,
+            59,
+            17
+          ]
+        },
+        "extent": [
+          5,
+          7,
+          8
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #9",
+      "confidence": null,
+      "sizeMm": 16.0,
+      "volumeMm3": 334.4,
+      "location": {
+        "centroid": [
+          89.947,
+          64.816,
+          13.263
+        ],
+        "bbox": {
+          "min": [
+            88,
+            61,
+            11
+          ],
+          "max": [
+            92,
+            68,
+            16
+          ]
+        },
+        "extent": [
+          5,
+          8,
+          6
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #10",
+      "confidence": null,
+      "sizeMm": 12.0,
+      "volumeMm3": 299.2,
+      "location": {
+        "centroid": [
+          82.265,
+          71.765,
+          12.5
+        ],
+        "bbox": {
+          "min": [
+            80,
+            70,
+            11
+          ],
+          "max": [
+            85,
+            73,
+            14
+          ]
+        },
+        "extent": [
+          6,
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #6",
+      "confidence": null,
+      "sizeMm": 11.0,
+      "volumeMm3": 246.4,
+      "location": {
+        "centroid": [
+          73.179,
+          27.893,
+          12.0
+        ],
+        "bbox": {
+          "min": [
+            71,
+            26,
+            10
+          ],
+          "max": [
+            75,
+            30,
+            14
+          ]
+        },
+        "extent": [
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #5",
+      "confidence": null,
+      "sizeMm": 14.0,
+      "volumeMm3": 211.2,
+      "location": {
+        "centroid": [
+          92.958,
+          60.542,
+          9.25
+        ],
+        "bbox": {
+          "min": [
+            92,
+            58,
+            8
+          ],
+          "max": [
+            94,
+            64,
+            11
+          ]
+        },
+        "extent": [
+          3,
+          7,
+          4
+        ]
+      }
+    },
+    {
+      "type": "LESION",
+      "label": "Lesion component #11",
+      "confidence": null,
+      "sizeMm": 12.0,
+      "volumeMm3": 211.2,
+      "location": {
+        "centroid": [
+          60.458,
+          39.875,
+          16.292
+        ],
+        "bbox": {
+          "min": [
+            59,
+            38,
+            14
+          ],
+          "max": [
+            62,
+            43,
+            18
+          ]
+        },
+        "extent": [
+          4,
+          6,
+          5
+        ]
+      }
+    }
+  ],
+  "reportData": {
+    "findings": "Structured output contains 11 lesion component(s) derived from the lesion mask.",
+    "impression": "11 lesion component(s) were derived from seeded artifact masks and require clinical correlation.",
+    "limitations": "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.",
+    "recommendation": "Correlate with source images and radiologist review before clinical use."
+  },
+  "reportText": "Findings: Structured output contains 11 lesion component(s) derived from the lesion mask.\n\nImpression: 11 lesion component(s) were derived from seeded artifact masks and require clinical correlation.\n\nLimitations: Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.\n\nRecommendation: Correlate with source images and radiologist review before clinical use."
+}

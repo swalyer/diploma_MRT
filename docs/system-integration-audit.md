@@ -37,7 +37,7 @@ Commands executed:
 | Real pipeline orchestration | Partial | `real_pipeline.py` has staged flow; depends on external tooling availability. |
 | Adapter wiring (TotalSegmentator / nnUNet / MedSAM) | Partial | Adapters exist; runtime usability depends on installed tools and weights. |
 | Missing weights behavior | Implemented/Graceful | Real pipeline adapters gate by config and return partial outputs. |
-| MRI lesion path | Experimental/Partial | MRI messaging should remain experimental; lesion path may be absent. |
+| MRI lesion path | Implemented/Heuristic-supported | MRI suspicious-zone path works in real mode via heuristic fallback when dedicated weights are absent. |
 
 ## D. Frontend reality
 | Capability | Status | Notes |
@@ -55,7 +55,7 @@ Commands executed:
 - **Frontend inferred**: availability chips from artifact presence.
 - **Unavailable unless configured**: real model stages requiring external weights/binaries.
 - **Mock-only**: deterministic mock mode artifacts and findings.
-- **MRI**: experimental and partially supported; must be presented as such.
+- **MRI**: supported via heuristic fallback; dedicated model weights remain the preferred production path.
 
 ## Key risks and fixes completed in this pass
 1. Backend build instability due Lombok annotation processing under this toolchain → fixed in `pom.xml`.

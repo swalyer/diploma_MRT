@@ -23,7 +23,7 @@ export function CreateCasePage() {
 
   const validationError = useMemo(() => {
     if (!file) return null
-    if (!/\.(nii|nii\.gz|zip)$/i.test(file.name)) return 'Unsupported format. Allowed: .nii, .nii.gz, .zip'
+    if (!/\.(nii|nii\.gz)$/i.test(file.name)) return 'Unsupported format. Allowed: .nii, .nii.gz'
     return null
   }, [file])
 
@@ -44,7 +44,7 @@ export function CreateCasePage() {
     setError(null)
     setSuccessMessage(null)
     if (!patientPseudoId.trim()) return setError('Patient pseudo ID is required.')
-    if (!file) return setError('Please attach a DICOM ZIP or NIfTI file to proceed.')
+    if (!file) return setError('Please attach a NIfTI file to proceed.')
     if (validationError) return setError(validationError)
     setLoading(true)
 
@@ -101,23 +101,23 @@ export function CreateCasePage() {
             <Chip label="3. Open case and run pipeline" variant="outlined" />
           </Stack>
 
-          <TextField label="Patient pseudo ID" value={patientPseudoId} onChange={(e) => setPatientPseudoId(e.target.value)} />
-          <TextField select label="Declared modality" value={modality} onChange={(e) => setModality(e.target.value)}>
+          <TextField label="Patient pseudo ID" value={patientPseudoId} onChange={(e) => setPatientPseudoId(e.target.value)} inputProps={{ 'data-testid': 'create-case-pseudo-id' }} />
+          <TextField select label="Declared modality" value={modality} onChange={(e) => setModality(e.target.value)} SelectProps={{ inputProps: { 'data-testid': 'create-case-modality' } }}>
             <MenuItem value="CT">CT (primary path)</MenuItem>
-            <MenuItem value="MRI">MRI (experimental)</MenuItem>
+            <MenuItem value="MRI">MRI (heuristic-supported)</MenuItem>
           </TextField>
 
           <Box onDrop={onDrop} onDragOver={(e) => e.preventDefault()} sx={{ p: 3, border: '2px dashed #aac1ec', borderRadius: 2, background: '#f8fbff' }}>
             <Typography fontWeight={700}>Drag and drop study package</Typography>
-            <Typography variant="body2" color="text.secondary">Accepted: `.nii`, `.nii.gz`, `.zip` (DICOM package). Upload is persisted by backend storage service.</Typography>
-            <Button sx={{ mt: 1.5 }} variant="outlined" component="label">Choose file<input hidden type="file" accept=".nii,.nii.gz,.zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></Button>
+            <Typography variant="body2" color="text.secondary">Accepted: `.nii`, `.nii.gz`. DICOM/ZIP ingestion is disabled until converter runtime is implemented.</Typography>
+            <Button sx={{ mt: 1.5 }} variant="outlined" component="label">Choose file<input data-testid="study-file-input" hidden type="file" accept=".nii,.nii.gz" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></Button>
           </Box>
 
           {file && <Alert severity={validationError ? 'error' : 'info'}>Selected: {file.name}{validationError ? ` · ${validationError}` : ''}</Alert>}
           {successMessage && <Alert severity="success">{successMessage}</Alert>}
           {error && <Alert severity="error">{error}</Alert>}
           {loading && <LinearProgress />}
-          <Button variant="contained" onClick={submit} disabled={loading}>Create case & upload</Button>
+          <Button variant="contained" onClick={submit} disabled={loading} data-testid="create-case-submit">Create case & upload</Button>
         </Stack>
       </CardContent></Card>
     </Grid2>
@@ -125,9 +125,8 @@ export function CreateCasePage() {
       <Card sx={{ height: '100%' }}><CardContent>
         <Typography variant="h6">Upload guidance</Typography>
         <Stack spacing={1} mt={1}>
-          <Typography variant="body2">• ZIP should contain a coherent DICOM series.</Typography>
           <Typography variant="body2">• NIfTI should be volumetric 3D study.</Typography>
-          <Typography variant="body2">• MRI lesion support remains experimental.</Typography>
+          <Typography variant="body2">• MRI lesion support is available via heuristic fallback when dedicated weights are absent.</Typography>
           <Typography variant="body2">• After upload, pipeline run is manual from case page.</Typography>
         </Stack>
       </CardContent></Card>

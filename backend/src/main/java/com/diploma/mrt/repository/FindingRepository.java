@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface FindingRepository extends JpaRepository<Finding, Long> {
     List<Finding> findByCaseEntityId(Long caseId);
+    void deleteByCaseEntityId(Long caseId);
 }

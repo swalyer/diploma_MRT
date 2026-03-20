@@ -1,5 +1,8 @@
 package com.diploma.mrt.entity;
 
+import com.diploma.mrt.model.ReportData;
+import com.diploma.mrt.persistence.converter.ReportDataJsonConverter;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,8 +21,9 @@ public class Report {
     private CaseEntity caseEntity;
     @Column(columnDefinition = "text", nullable = false)
     private String reportText;
-    @Column(columnDefinition = "text", nullable = false)
-    private String reportJson;
+    @Convert(converter = ReportDataJsonConverter.class)
+    @Column(name = "report_json", columnDefinition = "text", nullable = false)
+    private ReportData reportData;
     @Column(nullable = false)
     private Instant createdAt;
 }

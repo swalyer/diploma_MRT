@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+env:
+  APP_JWT_SECRET: ci-jwt-secret-0123456789abcdef0123456789abcdef
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run backend tests
+        run: mvn test -q
+
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+  ml-service:
+    name: ML Service Contract And Smoke Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ml-service test image
+        run: docker compose build ml-service-test
+
+      - name: Run ml-service tests
+        run: docker compose run --rm --no-deps ml-service-test pytest -q
+
+  browser-e2e:
+    name: Browser E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Playwright test dependencies
+        working-directory: frontend/e2e
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: frontend/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Start mock application stack
+        run: APP_ML_MODE=mock ML_MODE=mock docker compose up -d --build reverse-proxy frontend backend ml-service postgres-primary audit-postgres minio
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost/actuator/health >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Backend health did not become ready in time"
+          exit 1
+
+      - name: Run browser E2E
+        working-directory: frontend/e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost
+        run: npx playwright test
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+
+      - name: Stop application stack
+        if: always()
+        run: docker compose down -v

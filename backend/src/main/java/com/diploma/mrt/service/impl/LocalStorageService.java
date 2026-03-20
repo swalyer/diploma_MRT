@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 
 @Service
 public class LocalStorageService implements StorageService {
@@ -20,7 +21,9 @@ public class LocalStorageService implements StorageService {
     @Override
     public String saveCaseFile(Long caseId, MultipartFile file) {
         String safeName = Path.of(file.getOriginalFilename() == null ? "upload.bin" : file.getOriginalFilename()).getFileName().toString();
-        String objectKey = "cases/" + caseId + "/" + safeName;
+        String objectKey = Path.of("cases", caseId.toString(), UUID.randomUUID().toString(), safeName)
+                .toString()
+                .replace('\\', '/');
         try {
             Path target = Path.of(root).resolve(objectKey);
             Files.createDirectories(target.getParent());
@@ -33,11 +36,32 @@ public class LocalStorageService implements StorageService {
 
     @Override
     public Resource loadAsResource(String objectKey) {
-        return new PathResource(Path.of(root).resolve(objectKey));
+        return new PathResource(resolvePath(objectKey));
     }
 
     @Override
-    public String resolveAbsolutePath(String objectKey) {
-        return Path.of(root).resolve(objectKey).toString();
+    public void validateObjectKey(String objectKey) {
+        resolvePath(objectKey);
+    }
+
+    @Override
+    public void delete(String objectKey) {
+        try {
+            Files.deleteIfExists(resolvePath(objectKey));
+        } catch (IOException exception) {
+            throw new RuntimeException("Storage delete error", exception);
+        }
+    }
+
+    private Path resolvePath(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            throw new IllegalArgumentException("Object key must not be blank");
+        }
+        Path rootPath = Path.of(root).toAbsolutePath().normalize();
+        Path resolved = rootPath.resolve(objectKey).normalize();
+        if (!resolved.startsWith(rootPath)) {
+            throw new IllegalArgumentException("Object key resolves outside storage root");
+        }
+        return resolved;
     }
 }

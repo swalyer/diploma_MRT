@@ -10,8 +10,8 @@ Incremental production-like MVP for liver CT/MRI decision support. The project k
 > ⚠️ Clinical safety: outputs are **decision-support only** and must be verified by a physician.
 
 ## Supported modalities
-- **CT**: primary real pipeline (DICOM/NIfTI → liver segmentation → lesion segmentation when weights exist).
-- **MRI**: experimental. Liver mask path is available; lesion analysis may be unavailable until MRI lesion weights are configured.
+- **CT**: primary real pipeline for uploaded NIfTI studies (`.nii`, `.nii.gz`) with liver segmentation and lesion segmentation when weights exist.
+- **MRI**: heuristic-supported. Liver and suspicious-zone paths are available in real mode; dedicated MRI weights still improve quality when configured.
 
 ## Datasets referenced for benchmarking/dev scripts
 - 3D-IRCADb-01 (CT end-to-end smoke tests)
@@ -41,12 +41,22 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
    ```
 2. Verify health:
    ```bash
-   docker compose ps
+docker compose ps
+
+## CI
+
+GitHub Actions workflow lives in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) and runs:
+
+- `backend`: `mvn test -q`
+- `frontend`: `npm ci && npm run build`
+- `ml-service`: `docker compose build ml-service-test` and `docker compose run --rm --no-deps ml-service-test pytest -q`
+- `browser-e2e`: starts the mock stack via Docker Compose and runs Playwright from [`frontend/e2e`](./frontend/e2e)
    curl -fsS http://localhost/actuator/health
    ```
 3. Demo credentials (both seeded by Flyway after schema migration):
    - `admin@demo.local` / `Admin123!`
    - `doctor@demo.local` / `Admin123!`
+   - Local Docker Compose enables these demo users explicitly via `APP_DEMO_USERS_ENABLED=true`; keep this disabled outside local/demo environments.
 4. Login smoke test:
    ```bash
    curl -i -X POST http://localhost/api/auth/login \
@@ -107,7 +117,7 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
 ```
 
 ## Inference flow
-1. Upload CT/MRI case artifact (object key stored server-side).
+1. Upload CT/MRI case artifact in NIfTI format (`.nii` or `.nii.gz`) and store its object key server-side.
 2. Backend sends ML request with `caseId`, `modality`, `executionMode`, and `fileReferences`.
 3. ML returns artifact keys for enhanced volume, masks, meshes + findings + metrics.
 4. Backend persists results and status audit trail (started/request/completed/failed).
@@ -125,7 +135,8 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
 
 ## Known limitations
 - Real inference depends on locally installed TotalSegmentator/nnUNet and weights.
-- MRI lesion path is experimental and may return liver-only results.
+- Upload API currently accepts only NIfTI (`.nii`, `.nii.gz`). DICOM/ZIP ingestion is not exposed in the MVP upload contract until a converter-backed pipeline is added end-to-end.
+- MRI lesion path has heuristic fallback; dedicated MRI weights are still recommended for clinical-grade quality.
 - 2D viewer is now artifact-backed for NIfTI (window/level + overlays); full OHIF DICOM-native workflow is still pending.
 - 3D viewer loads generated liver/lesion GLB meshes when artifacts exist; if lesion mesh is absent, UI explicitly reports the reason instead of rendering synthetic geometry.
 
@@ -177,14 +188,34 @@ The local compose keeps explicit logical segments (`edge_net`, `app_net`, `data_
 4. Demo flow:
    - register/login
    - create case
-   - upload `.nii/.nii.gz/.dcm/.zip`
+   - upload `.nii/.nii.gz`
    - run pipeline
    - inspect timeline, report, artifacts, 2D/3D tabs
+
+## Seeded CT Demo Pack
+- Committed seeded CT manifests live in [`demo-data/manifests`](./demo-data/manifests):
+  - `ct-normal-001.json`
+  - `ct-single-lesion-001.json`
+  - `ct-multifocal-001.json`
+- Lightweight artifact-backed demo files live under [`storage/demo/cases`](./storage/demo/cases).
+- Regenerate the committed demo pack from the repository smoke fixture with:
+  ```bash
+  python3 demo-data/scripts/build_seeded_ct_demo_pack.py
+  ```
+- Run backend/API seeded smoke against a live local stack with:
+  ```bash
+  python3 demo-data/scripts/smoke_seeded_case_api.py
+  ```
+- Admin import flow:
+  - login as `admin@demo.local`
+  - open `/admin`
+  - paste a manifest JSON from `demo-data/manifests`
+  - import and open the seeded case
 
 ## What is real vs mock vs experimental (strict)
 - **Real (when configured):** CT segmentation pipeline stages backed by external model tooling.
 - **Mock:** deterministic artifact/result generation with `ML_MODE=mock`.
-- **Experimental:** MRI path and MedSAM-assisted branches.
+- **Heuristic-supported:** MRI path and no-weights lesion fallback branches.
 - **Missing:** OHIF DICOM-native frontend flow.
 
 ## Distributed deployment docs

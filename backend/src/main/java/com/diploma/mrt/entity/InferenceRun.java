@@ -1,5 +1,11 @@
 package com.diploma.mrt.entity;
 
+import com.diploma.mrt.model.MlMetrics;
+import com.diploma.mrt.model.ProcessDetails;
+import com.diploma.mrt.persistence.converter.ExecutionModeConverter;
+import com.diploma.mrt.persistence.converter.MlMetricsJsonConverter;
+import com.diploma.mrt.persistence.converter.ProcessDetailsJsonConverter;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +22,9 @@ public class InferenceRun {
     @ManyToOne(optional = false)
     @JoinColumn(name = "case_id")
     private CaseEntity caseEntity;
+    @Convert(converter = ExecutionModeConverter.class)
+    @Column(name = "execution_mode")
+    private ExecutionMode executionMode;
     @Column(nullable = false)
     private String modelVersion;
     @Enumerated(EnumType.STRING)
@@ -24,6 +33,10 @@ public class InferenceRun {
     @Column(nullable = false)
     private Instant startedAt;
     private Instant finishedAt;
-    @Column(columnDefinition = "text")
-    private String metricsJson;
+    @Convert(converter = MlMetricsJsonConverter.class)
+    @Column(name = "metrics_json", columnDefinition = "text")
+    private MlMetrics metrics;
+    @Convert(converter = ProcessDetailsJsonConverter.class)
+    @Column(name = "failure_details_json", columnDefinition = "text")
+    private ProcessDetails failureDetails;
 }

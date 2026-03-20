@@ -3,6 +3,10 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mrt}
     username: ${SPRING_DATASOURCE_USERNAME:mrt}
     password: ${SPRING_DATASOURCE_PASSWORD:mrt}
+  servlet:
+    multipart:
+      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:2GB}
+      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:2GB}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -23,10 +27,12 @@ logging:
     root: ${APP_LOG_LEVEL:INFO}
 
 app:
-  jwt-secret: ${APP_JWT_SECRET:dev-secret}
+  jwt-secret: ${APP_JWT_SECRET}
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost}
   ml-url: ${APP_ML_URL:http://localhost:8000}
   ml-mode: ${APP_ML_MODE:mock}
+  processing-recovery-enabled: ${APP_PROCESSING_RECOVERY_ENABLED:true}
+  demo-users-enabled: ${APP_DEMO_USERS_ENABLED:false}
   storage-root: ${APP_STORAGE_ROOT:./storage}
   storage-endpoint: ${APP_STORAGE_ENDPOINT:http://minio:9000}
   storage-access-key: ${APP_STORAGE_ACCESS_KEY:minio}
@@ -48,6 +54,8 @@ app:
 
 server:
   port: 8080
+  tomcat:
+    max-swallow-size: ${APP_TOMCAT_MAX_SWALLOW_SIZE:-1}
 
 management:
   endpoints:
