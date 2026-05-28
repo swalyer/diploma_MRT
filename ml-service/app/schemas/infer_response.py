@@ -20,6 +20,8 @@ class Metrics(BaseModel):
     mode: ExecutionMode
     liverModel: Optional[bool] = None
     lesionModel: Optional[bool] = None
+    lesionModelName: Optional[str] = None
+    device: Optional[str] = None
     medsamAvailable: Optional[bool] = None
     supportsMri3dSuspiciousZone: Optional[bool] = None
 

@@ -48,6 +48,8 @@ export type MlMetrics = {
   mode: ExecutionMode
   liverModel?: boolean | null
   lesionModel?: boolean | null
+  lesionModelName?: string | null
+  device?: string | null
   medsamAvailable?: boolean | null
   supportsMri3dSuspiciousZone?: boolean | null
 }

@@ -223,7 +223,13 @@ export function CaseDetailsPage() {
                   <Chip size="small" label={`Lesion mask: ${capability.lesionMask ? 'available' : 'unavailable'}`} color={capability.lesionMask ? 'success' : 'default'} />
                   <Chip size="small" label={`Liver mesh: ${capability.liverMesh ? 'available' : 'unavailable'}`} color={capability.liverMesh ? 'success' : 'default'} />
                   <Chip size="small" label={`Lesion mesh: ${capability.lesionMesh ? 'available' : 'unavailable'}`} color={capability.lesionMesh ? 'success' : 'default'} />
-                  {caseSummary?.modality === 'MRI' && <Chip size="small" color="warning" label="MRI honest-ready · heuristic-supported" />}
+                  {status?.metrics?.lesionModel === true ? (
+                    <Chip size="small" color="success" label={`Lesion model: ${status.metrics.lesionModelName ?? 'real'}${status.metrics.device ? ` · ${status.metrics.device}` : ''}`} />
+                  ) : caseSummary?.modality === 'MRI' ? (
+                    <Chip size="small" color="warning" label="MRI honest-ready · heuristic-supported" />
+                  ) : status?.metrics?.lesionModel === false ? (
+                    <Chip size="small" color="warning" label="Lesion: heuristic suspicious-zone" />
+                  ) : null}
                 </Stack>
               </Grid2>
               <Grid2 size={{ xs: 12, lg: 4 }}>
@@ -266,6 +272,8 @@ export function CaseDetailsPage() {
                 <Typography variant="body2">Result source: {resultSourceLabel}</Typography>
                 <Typography variant="body2">Result ready: {status?.resultReady ? 'yes' : 'no'}</Typography>
                 <Typography variant="body2">Pipeline mode: {status?.metrics?.mode ?? 'not exposed by API'}</Typography>
+                <Typography variant="body2">Lesion model: {status?.metrics?.lesionModel === true ? (status.metrics.lesionModelName ?? 'real model') : status?.metrics?.lesionModel === false ? 'heuristic (no dedicated model)' : 'not exposed by API'}</Typography>
+                <Typography variant="body2">Compute device: {status?.metrics?.device ?? 'not exposed by API'}</Typography>
                 <Typography variant="body2">Evidence bound: {reportData?.evidenceBound === true ? 'yes' : reportData?.evidenceBound === false ? 'no' : 'not exposed by API'}</Typography>
                 <Typography variant="body2">Case origin: {caseSummary?.origin ?? 'not exposed by API'}</Typography>
                 {caseSummary?.demoCaseSlug && <Typography variant="body2">Demo slug: {caseSummary.demoCaseSlug}</Typography>}

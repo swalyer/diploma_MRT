@@ -3,7 +3,7 @@ import numpy as np
 import nibabel as nib
 from app.pipeline.real_pipeline import RealPipeline
 from app.adapters.totalsegmentator_adapter import TotalSegmentatorAdapter
-from app.adapters.nnunet_adapter import NnUnetAdapter
+from app.adapters.nnunet_adapter import NnUnetAdapter, NnUnetAdapterConfig
 from app.adapters.medsam_adapter import MedSamAdapter
 from app.model_registry import ModelConfig
 from app.schemas.common import ExecutionMode, Modality
@@ -21,7 +21,7 @@ def test_real_pipeline_smoke(tmp_path: Path):
     pipeline = RealPipeline(
         artifacts_root=str(tmp_path),
         totalsegmentator=TotalSegmentatorAdapter(ModelConfig('ts', False)),
-        nnunet=NnUnetAdapter(ModelConfig('nn', False)),
+        nnunet=NnUnetAdapter(NnUnetAdapterConfig()),
         medsam=MedSamAdapter(ModelConfig('ms', False)),
     )
     res = pipeline.run(
@@ -49,7 +49,7 @@ def test_real_pipeline_mri_generates_suspicious_zone_outputs(tmp_path: Path):
     pipeline = RealPipeline(
         artifacts_root=str(tmp_path),
         totalsegmentator=TotalSegmentatorAdapter(ModelConfig('ts', False)),
-        nnunet=NnUnetAdapter(ModelConfig('nn', False)),
+        nnunet=NnUnetAdapter(NnUnetAdapterConfig()),
         medsam=MedSamAdapter(ModelConfig('ms', False)),
     )
     res = pipeline.run(

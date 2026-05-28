@@ -32,12 +32,11 @@ class RealPipeline(Pipeline):
             nii_key = preprocess_mri_volume(nii_key, f'{nii_key}.preprocessed.nii.gz', self.artifacts_root)
         liver_mask_key, liver_real = self.totalsegmentator.segment_liver(nii_key, f'{nii_key}.liver_mask.nii.gz', self.artifacts_root, request.modality)
 
-        experimental = request.modality == Modality.MRI
-        lesion_key = f'{nii_key}.lesion_mask.nii.gz'
-        if experimental:
-            lesion_key, lesion_real = self.medsam.segment_lesion(nii_key, liver_mask_key, lesion_key, self.artifacts_root, request.modality)
-        else:
-            lesion_key, lesion_real = self.nnunet.segment_lesion(nii_key, liver_mask_key, lesion_key, self.artifacts_root, request.modality)
+        # Both CT and MRI lesions go through nnU-Net (FR-3); the adapter falls
+        # back to the heuristic suspicious-zone path when no model is configured.
+        lesion = self.nnunet.segment_lesion(nii_key, liver_mask_key, f'{nii_key}.lesion_mask.nii.gz', self.artifacts_root, request.modality)
+        lesion_key = lesion.object_key
+        lesion_real = lesion.is_model
 
         lesion_image = nib.load(str(Path(self.artifacts_root) / lesion_key))
         lesion_data = lesion_image.get_fdata()
@@ -83,13 +82,17 @@ class RealPipeline(Pipeline):
                 supports_3d_lesion=lesion_mesh is not None,
             )
         )
+        lesion_descriptor = (lesion.model_name or 'model') if lesion_real else 'heuristic'
+        device_suffix = f"@{lesion.device}" if lesion.device else ''
         return InferResponse(
             status='COMPLETED',
-            modelVersion=f"real-ts:{'on' if liver_real else 'heuristic'}-lesion:{'model' if lesion_real else 'heuristic'}",
+            modelVersion=f"real-ts:{'on' if liver_real else 'heuristic'}-lesion:{lesion_descriptor}{device_suffix}",
             metrics=Metrics(
                 mode=ExecutionMode.REAL,
                 liverModel=liver_real,
                 lesionModel=lesion_real,
+                lesionModelName=lesion.model_name,
+                device=lesion.device,
                 medsamAvailable=self.medsam.interactive_available(),
                 supportsMri3dSuspiciousZone=True,
             ),

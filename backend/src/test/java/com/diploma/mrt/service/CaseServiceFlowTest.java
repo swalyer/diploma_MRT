@@ -212,7 +212,7 @@ class CaseServiceFlowTest {
                         "v1",
                         InferenceStatus.FAILED,
                         "real",
-                        new MlMetrics(ExecutionMode.REAL, false, false, false, true),
+                        new MlMetrics(ExecutionMode.REAL, false, false, null, null, false, true),
                         reportData(),
                         List.of(),
                         new MlInferenceResponse.ArtifactOutputs(null, null, null, null, null)
@@ -312,7 +312,7 @@ class CaseServiceFlowTest {
                 "v1",
                 InferenceStatus.COMPLETED,
                 "real",
-                new MlMetrics(ExecutionMode.REAL, true, true, false, true),
+                new MlMetrics(ExecutionMode.REAL, true, true, "nnU-Net v2 [Dataset501_AtlasMRILesion]", "cuda", false, true),
                 reportData(),
                 List.of(),
                 new MlInferenceResponse.ArtifactOutputs(
