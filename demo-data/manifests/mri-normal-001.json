@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "v1",
+  "caseSlug": "mri-normal-001",
+  "origin": "SEEDED_DEMO",
+  "modality": "MRI",
+  "category": "NORMAL",
+  "patientPseudoId": "demo-mri-normal-001",
+  "sourceDataset": "Repository MRI smoke fixture",
+  "sourceAttribution": "Derived from the tiny synthetic MRI smoke fixture committed in this repository for honest-ready heuristic MRI demo import validation.",
+  "artifacts": [
+    {
+      "type": "ORIGINAL_STUDY",
+      "objectKey": "demo/cases/mri-normal-001/input.nii.gz",
+      "fileName": "input.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "19799c9730b2aaa0ef6a15ba7287af5c9f03ee21fa7ab7fa51d90eda9f984873",
+      "sizeBytes": 1319
+    },
+    {
+      "type": "ENHANCED_VOLUME",
+      "objectKey": "demo/cases/mri-normal-001/enhanced.nii.gz",
+      "fileName": "enhanced.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "19799c9730b2aaa0ef6a15ba7287af5c9f03ee21fa7ab7fa51d90eda9f984873",
+      "sizeBytes": 1319
+    },
+    {
+      "type": "LIVER_MASK",
+      "objectKey": "demo/cases/mri-normal-001/liver_mask.nii.gz",
+      "fileName": "liver_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "9632705e15123142d8a03a90e4c337ed909d4b98a5d7c70254179ed50bb849fb",
+      "sizeBytes": 2006
+    },
+    {
+      "type": "LESION_MASK",
+      "objectKey": "demo/cases/mri-normal-001/lesion_mask.nii.gz",
+      "fileName": "lesion_mask.nii.gz",
+      "mimeType": "application/gzip",
+      "sha256": "f1c7684b115bb6051ecde247e3f76e71240a4f4b4d2a6562c2489f6066cfa905",
+      "sizeBytes": 230
+    },
+    {
+      "type": "LIVER_MESH",
+      "objectKey": "demo/cases/mri-normal-001/liver.glb",
+      "fileName": "liver.glb",
+      "mimeType": "model/gltf-binary",
+      "sha256": "37059039faa3f9b8d7acf39ae8c434361c6a6362f240e65d2a68a43b0e014431",
+      "sizeBytes": 49988
+    }
+  ],
+  "findings": [],
+  "reportData": {
+    "findings": "Structured output contains no heuristic suspicious-zone components derived from the lesion mask.",
+    "impression": "No heuristic suspicious-zone components were derived from the seeded artifact masks.",
+    "limitations": "Seeded MRI demo import reuses heuristic-supported artifact findings and report sections; it does not represent a live ML execution. MRI suspicious-zone output remains heuristic-supported in the current scope. All outputs remain decision-support only and depend on artifact quality.",
+    "recommendation": "Correlate with source images and radiologist review before clinical use."
+  }
+}

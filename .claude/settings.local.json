@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvidia-smi)",
+      "Bash(python -c \"import torch; print\\('torch:', torch.__version__, '| CUDA:', torch.cuda.is_available\\(\\), '|', torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else 'no GPU'\\)\")",
+      "Bash(py -3.11 --version)",
+      "Bash(py -3.10 --version)",
+      "Bash(py -3.12 --version)",
+      "Bash(where python3.11)",
+      "Bash(where python3.10)",
+      "Bash(conda --version)",
+      "Bash(mamba --version)",
+      "Bash(where conda *)",
+      "Bash(pip list *)",
+      "Bash(winget install *)",
+      "Bash(py -3.11 -m venv \"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\")",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\pip.exe\" install *)",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install --upgrade pip --quiet)",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 --quiet)",
+      "Bash(C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\python.exe *)",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install nnunetv2==2.5.1 SimpleITK==2.4.0 nibabel scipy pyyaml matplotlib --quiet)",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import nnunetv2; print\\('nnunetv2:', nnunetv2.__version__\\)\")",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\nnUNetv2_train.exe\" --help)",
+      "Bash(\"C:\\\\Users\\\\pro10\\\\Desktop\\\\diploma_MRT-codex-full-readiness-bulk-pr\\\\ml-service\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import nnunetv2; print\\('nnunetv2 OK'\\)\")",
+      "Bash(awk --line-buffered ' *)",
+      "Bash(where git *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(where winget *)",
+      "Bash(echo \"winget-exit:$?\")",
+      "Bash(where git.exe)",
+      "Bash(git --version)",
+      "PowerShell(Get-Command *)",
+      "Bash(git config *)",
+      "Bash(echo \"name-exit:$?\")",
+      "Bash(echo \"email-exit:$?\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m ' *)"
+    ]
+  }
+}

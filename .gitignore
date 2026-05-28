@@ -1,0 +1,23 @@
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.tsbuildinfo
+**/target
+.env
+.DS_Store
+*.log
+.idea/
+frontend/.npm-cache/
+frontend/e2e/.playwright-browsers/
+frontend/e2e/test-results/
+AGENTS.md
+
+# Runtime case artifacts (regenerated per run; committed demo packs live in storage/demo/)
+storage/cases/
+
+# nnU-Net dataset/training scratch (kept outside VCS; lives under datasets root)
+**/nnUNet_raw/
+**/nnUNet_preprocessed/
+**/nnUNet_results/

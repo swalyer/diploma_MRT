@@ -1,0 +1,606 @@
+{
+  "components": {
+    "schemas": {
+      "ArtifactOutputs": {
+        "properties": {
+          "enhancedObjectKey": {
+            "type": "string"
+          },
+          "lesionMaskObjectKey": {
+            "type": "string"
+          },
+          "lesionMeshObjectKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liverMaskObjectKey": {
+            "type": "string"
+          },
+          "liverMeshObjectKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enhancedObjectKey",
+          "liverMaskObjectKey",
+          "lesionMaskObjectKey",
+          "liverMeshObjectKey"
+        ],
+        "type": "object"
+      },
+      "BoundingBox": {
+        "properties": {
+          "max": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "min": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ],
+        "type": "object"
+      },
+      "CapabilitiesResponse": {
+        "properties": {
+          "inputFormats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "modalities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "modes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "supports3dLiver": {
+            "type": "boolean"
+          },
+          "supports3dSuspiciousZoneCt": {
+            "type": "boolean"
+          },
+          "supports3dSuspiciousZoneMri": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "service",
+          "version",
+          "modes",
+          "modalities",
+          "inputFormats",
+          "outputs",
+          "supports3dLiver",
+          "supports3dSuspiciousZoneCt",
+          "supports3dSuspiciousZoneMri"
+        ],
+        "type": "object"
+      },
+      "ExecutionMode": {
+        "enum": [
+          "mock",
+          "real"
+        ],
+        "type": "string"
+      },
+      "FileReferences": {
+        "properties": {
+          "inputObjectKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "inputObjectKey"
+        ],
+        "type": "object"
+      },
+      "Finding": {
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/components/schemas/FindingLocation"
+          },
+          "sizeMm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/FindingType"
+          },
+          "volumeMm3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "location"
+        ],
+        "type": "object"
+      },
+      "FindingLocation": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoundingBox"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "centroid": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extent": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suspicion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "FindingType": {
+        "enum": [
+          "LESION"
+        ],
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "lesionModelConfigured": {
+            "type": "boolean"
+          },
+          "liverModelConfigured": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "mriHeuristicSupported": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "mode",
+          "version",
+          "liverModelConfigured",
+          "lesionModelConfigured",
+          "mriHeuristicSupported"
+        ],
+        "type": "object"
+      },
+      "InferRequest": {
+        "properties": {
+          "caseId": {
+            "type": "integer"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/ExecutionMode",
+            "default": "mock"
+          },
+          "fileReferences": {
+            "$ref": "#/components/schemas/FileReferences"
+          },
+          "modality": {
+            "$ref": "#/components/schemas/Modality"
+          },
+          "requestMetadata": {
+            "$ref": "#/components/schemas/RequestMetadata"
+          },
+          "schemaVersion": {
+            "default": "v1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "caseId",
+          "modality",
+          "fileReferences",
+          "requestMetadata"
+        ],
+        "type": "object"
+      },
+      "InferResponse": {
+        "properties": {
+          "artifacts": {
+            "$ref": "#/components/schemas/ArtifactOutputs"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "reportData": {
+            "$ref": "#/components/schemas/ReportData"
+          },
+          "reportText": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "default": "v1",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "modelVersion",
+          "metrics",
+          "reportText",
+          "reportData",
+          "findings",
+          "artifacts"
+        ],
+        "type": "object"
+      },
+      "Metrics": {
+        "properties": {
+          "lesionModel": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liverModel": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "medsamAvailable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "supportsMri3dSuspiciousZone": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "Modality": {
+        "enum": [
+          "CT",
+          "MRI"
+        ],
+        "type": "string"
+      },
+      "ReportCapabilities": {
+        "properties": {
+          "supports3dLesion": {
+            "type": "boolean"
+          },
+          "supports3dLiver": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "supports3dLiver",
+          "supports3dLesion"
+        ],
+        "type": "object"
+      },
+      "ReportData": {
+        "properties": {
+          "capabilities": {
+            "$ref": "#/components/schemas/ReportCapabilities"
+          },
+          "evidenceBound": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "lesionCount": {
+            "type": "integer"
+          },
+          "modality": {
+            "$ref": "#/components/schemas/Modality"
+          },
+          "sections": {
+            "$ref": "#/components/schemas/ReportSections"
+          }
+        },
+        "required": [
+          "modality",
+          "executionMode",
+          "lesionCount",
+          "evidenceBound",
+          "sections",
+          "capabilities"
+        ],
+        "type": "object"
+      },
+      "ReportSections": {
+        "properties": {
+          "findings": {
+            "type": "string"
+          },
+          "impression": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "string"
+          },
+          "recommendation": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "findings",
+          "impression",
+          "limitations",
+          "recommendation"
+        ],
+        "type": "object"
+      },
+      "RequestMetadata": {
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requestId",
+          "runId"
+        ],
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "mrt-ml-service",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/capabilities": {
+      "get": {
+        "responses": {
+          "200": {
+            "application/json": {
+              "$ref": "#/components/schemas/CapabilitiesResponse"
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "application/json": {
+              "$ref": "#/components/schemas/HealthResponse"
+            }
+          }
+        }
+      }
+    },
+    "/infer/case": {
+      "post": {
+        "requestBody": {
+          "$ref": "#/components/schemas/InferRequest"
+        },
+        "responses": {
+          "200": {
+            "application/json": {
+              "$ref": "#/components/schemas/InferResponse"
+            }
+          },
+          "422": {
+            "application/json": {
+              "$ref": "#/components/schemas/HTTPValidationError"
+            }
+          }
+        }
+      }
+    },
+    "/v1/infer/case": {
+      "post": {
+        "requestBody": {
+          "$ref": "#/components/schemas/InferRequest"
+        },
+        "responses": {
+          "200": {
+            "application/json": {
+              "$ref": "#/components/schemas/InferResponse"
+            }
+          },
+          "422": {
+            "application/json": {
+              "$ref": "#/components/schemas/HTTPValidationError"
+            }
+          }
+        }
+      }
+    }
+  }
+}
