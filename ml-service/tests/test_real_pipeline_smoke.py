@@ -64,5 +64,11 @@ def test_real_pipeline_mri_generates_suspicious_zone_outputs(tmp_path: Path):
     assert res.status == 'COMPLETED'
     assert (tmp_path / res.artifacts.liverMeshObjectKey).exists()
     assert res.metrics.supportsMri3dSuspiciousZone is True
+    assert res.metrics.lesionModel is False
+    assert "heuristic-supported" in res.reportData.sections.limitations
+    assert "heuristic suspicious-zone" in res.reportData.sections.findings
+    if res.findings:
+        assert res.findings[0].label.startswith("Heuristic suspicious-zone component")
+        assert res.findings[0].location.suspicion == "heuristic-supported"
     if res.artifacts.lesionMeshObjectKey is not None:
         assert (tmp_path / res.artifacts.lesionMeshObjectKey).exists()

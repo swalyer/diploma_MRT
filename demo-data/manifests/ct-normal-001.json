@@ -55,6 +55,5 @@
     "impression": "No lesion components were derived from the seeded artifact masks.",
     "limitations": "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.",
     "recommendation": "Correlate with source images and radiologist review before clinical use."
-  },
-  "reportText": "Findings: Structured output contains no lesion components derived from the lesion mask.\n\nImpression: No lesion components were derived from the seeded artifact masks.\n\nLimitations: Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. All outputs remain decision-support only and depend on artifact quality.\n\nRecommendation: Correlate with source images and radiologist review before clinical use."
+  }
 }

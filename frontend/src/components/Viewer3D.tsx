@@ -59,14 +59,27 @@ function MeshAsset({ url, color, opacity, onSelect }: { url: string; color: stri
   return <primitive object={scene} onClick={onSelect} />
 }
 
-export function Viewer3D({ liverArtifactId, lesionArtifactId, findings }: { liverArtifactId: number | null; lesionArtifactId: number | null; findings: FindingItem[] }) {
+export function Viewer3D({
+  liverArtifactId,
+  lesionArtifactId,
+  findings,
+  selectedFindingId,
+  onSelectFinding,
+}: {
+  liverArtifactId: number | null
+  lesionArtifactId: number | null
+  findings: FindingItem[]
+  selectedFindingId: number | null
+  onSelectFinding?: (findingId: number) => void
+}) {
   const [opacity, setOpacity] = useState(0.45)
   const [showLiver, setShowLiver] = useState(true)
   const [showLesion, setShowLesion] = useState(true)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selectionMessage, setSelectionMessage] = useState<string | null>(null)
   const [canvasKey, setCanvasKey] = useState(0)
   const liverMesh = useAuthorizedObjectUrl(liverArtifactId ? `/api/files/${liverArtifactId}/download` : null)
   const lesionMesh = useAuthorizedObjectUrl(lesionArtifactId ? `/api/files/${lesionArtifactId}/download` : null)
+  const suspiciousZones = findings.filter((finding) => finding.type === FINDING_TYPES.LESION)
 
   const exportShot = () => {
     const canvas = document.querySelector('canvas')
@@ -90,7 +103,13 @@ export function Viewer3D({ liverArtifactId, lesionArtifactId, findings }: { live
     )
   }
 
-  const suspiciousZones = findings.filter((finding) => finding.type === FINDING_TYPES.LESION)
+  const selectedFinding = suspiciousZones.find((finding) => finding.id === selectedFindingId) ?? null
+  const missingLesionMessage = !lesionArtifactId
+    ? suspiciousZones.length === 0
+      ? 'No suspicious-zone mesh is available because no lesion findings were materialized for this case.'
+      : 'Structured suspicious-zone findings exist, but no lesion mesh artifact was materialized for this case.'
+    : null
+  const formatVector = (values: number[] | null | undefined) => values?.map((value) => Number(value).toFixed(2)).join(', ') ?? 'N/A'
 
   return <Stack spacing={1.5} data-testid="viewer-3d-root">
     <Grid2 container spacing={1}>
@@ -118,23 +137,67 @@ export function Viewer3D({ liverArtifactId, lesionArtifactId, findings }: { live
         <ambientLight intensity={0.6} />
         <directionalLight position={[1, 1, 1]} intensity={1} />
         <Suspense fallback={null}>
-          {showLiver && liverMesh.objectUrl && <MeshAsset url={liverMesh.objectUrl} color="#879cb2" opacity={opacity} onSelect={() => setSelected('Liver mesh selected')} />}
-          {showLesion && lesionArtifactId && lesionMesh.objectUrl && <MeshAsset url={lesionMesh.objectUrl} color="#ef3d58" opacity={0.95} onSelect={() => setSelected('Lesion selected · detailed metadata endpoint not wired')} />}
+          {showLiver && liverMesh.objectUrl && <MeshAsset url={liverMesh.objectUrl} color="#879cb2" opacity={opacity} onSelect={() => setSelectionMessage('Liver mesh selected')} />}
+          {showLesion && lesionArtifactId && lesionMesh.objectUrl && (
+            <MeshAsset
+              url={lesionMesh.objectUrl}
+              color="#ef3d58"
+              opacity={0.95}
+              onSelect={() => {
+                if (suspiciousZones.length === 1) {
+                  onSelectFinding?.(suspiciousZones[0].id)
+                }
+                setSelectionMessage(
+                  suspiciousZones.length > 0
+                    ? 'Lesion mesh selected. Inspect the structured suspicious-zone metadata below.'
+                    : 'Lesion mesh selected.'
+                )
+              }}
+            />
+          )}
         </Suspense>
         <OrbitControls makeDefault />
       </Canvas>
     </Box>
 
-    {selected && <Alert severity="success">{selected}</Alert>}
+    {missingLesionMessage && <Alert severity="warning">{missingLesionMessage}</Alert>}
+    {selectionMessage && <Alert severity="success">{selectionMessage}</Alert>}
     {suspiciousZones.length > 0 && (
       <Card sx={{ p: 2 }}>
         <Stack spacing={1}>
           <Typography variant="subtitle1">Suspicious zones</Typography>
           {suspiciousZones.map((finding) => (
-            <Alert key={finding.id} severity={finding.confidence && finding.confidence >= 0.5 ? 'error' : 'warning'}>
-              {finding.label} · confidence {finding.confidence ?? 'N/A'} · volume {finding.volumeMm3 ?? 'N/A'} mm3
-            </Alert>
+            <Stack key={finding.id} direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }}>
+              <Alert sx={{ flex: 1, mb: 0 }} severity={finding.confidence && finding.confidence >= 0.5 ? 'error' : 'warning'}>
+                {finding.label} · confidence {finding.confidence ?? 'N/A'} · volume {finding.volumeMm3 ?? 'N/A'} mm3
+              </Alert>
+              <Button
+                size="small"
+                variant={selectedFindingId === finding.id ? 'contained' : 'outlined'}
+                onClick={() => onSelectFinding?.(finding.id)}
+              >
+                Inspect
+              </Button>
+            </Stack>
           ))}
+        </Stack>
+      </Card>
+    )}
+    {selectedFinding && (
+      <Card sx={{ p: 2 }}>
+        <Stack spacing={0.75}>
+          <Typography variant="subtitle1">Selected Suspicious Zone</Typography>
+          <Typography variant="body2">Label: {selectedFinding.label}</Typography>
+          <Typography variant="body2">Confidence: {selectedFinding.confidence ?? 'N/A'}</Typography>
+          <Typography variant="body2">Volume: {selectedFinding.volumeMm3 ?? 'N/A'} mm3</Typography>
+          <Typography variant="body2">Size: {selectedFinding.sizeMm ?? 'N/A'} mm</Typography>
+          <Typography variant="body2">Support: {selectedFinding.location?.suspicion ?? 'artifact-backed'}</Typography>
+          <Typography variant="body2">Segment: {selectedFinding.location?.segment ?? 'N/A'}</Typography>
+          <Typography variant="body2">Centroid: {formatVector(selectedFinding.location?.centroid ?? null)}</Typography>
+          <Typography variant="body2">
+            Bounding box: min [{formatVector(selectedFinding.location?.bbox?.min ?? null)}] · max [{formatVector(selectedFinding.location?.bbox?.max ?? null)}]
+          </Typography>
+          <Typography variant="body2">Extent: {formatVector(selectedFinding.location?.extent ?? null)}</Typography>
         </Stack>
       </Card>
     )}

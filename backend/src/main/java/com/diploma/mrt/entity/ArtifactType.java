@@ -2,7 +2,6 @@ package com.diploma.mrt.entity;
 
 public enum ArtifactType {
     ORIGINAL_STUDY(true, false),
-    ENHANCED(false, true),
     ENHANCED_VOLUME(false, true),
     LIVER_MASK(false, true),
     LESION_MASK(false, true),

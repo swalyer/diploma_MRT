@@ -2,6 +2,7 @@ package com.diploma.mrt.service;
 
 import com.diploma.mrt.dto.CaseDtos;
 import com.diploma.mrt.entity.Artifact;
+import com.diploma.mrt.entity.ArtifactStorageDisposition;
 import com.diploma.mrt.entity.ArtifactType;
 import com.diploma.mrt.entity.CaseEntity;
 import com.diploma.mrt.entity.CaseOrigin;
@@ -26,6 +27,7 @@ import com.diploma.mrt.service.impl.CaseAccessService;
 import com.diploma.mrt.service.impl.CaseProcessingService;
 import com.diploma.mrt.service.impl.CaseFileService;
 import com.diploma.mrt.service.impl.CaseServiceImpl;
+import com.diploma.mrt.testsupport.CaseEntityTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -97,8 +99,7 @@ class CaseServiceStateTest {
     @Test
     void processIsRejectedForSeededDemoCaseForDoctor() {
         CaseServiceImpl service = service();
-        CaseEntity seededCase = caseEntity(8L, CaseStatus.COMPLETED);
-        seededCase.setOrigin(CaseOrigin.SEEDED_DEMO);
+        CaseEntity seededCase = CaseEntityTestSupport.withOrigin(caseEntity(8L, CaseStatus.COMPLETED), CaseOrigin.SEEDED_DEMO);
         when(caseRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(seededCase));
 
         assertThrows(AccessDeniedException.class, () -> service.process("doctor@demo.local", 8L));
@@ -107,9 +108,7 @@ class CaseServiceStateTest {
     @Test
     void processIsRejectedForSeededDemoCaseEvenForAdmin() {
         CaseServiceImpl service = service();
-        CaseEntity seededCase = caseEntity(9L, CaseStatus.COMPLETED);
-        seededCase.setOrigin(CaseOrigin.SEEDED_DEMO);
-        seededCase.setCreatedBy(user("owner@demo.local", Role.ADMIN));
+        CaseEntity seededCase = CaseEntityTestSupport.newPersistedSeeded(9L, user("owner@demo.local", Role.ADMIN), Modality.CT, CaseStatus.COMPLETED);
         when(caseRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(seededCase));
         when(artifactRepository.findByCaseEntityId(9L)).thenReturn(List.of(sourceArtifact("cases/9/input.nii.gz")));
 
@@ -171,6 +170,31 @@ class CaseServiceStateTest {
     }
 
     @Test
+    void deleteSchedulesCleanupOnlyForManagedArtifacts() {
+        CaseServiceImpl service = service();
+        CaseEntity completedCase = caseEntity(14L, CaseStatus.COMPLETED);
+        Artifact managedArtifact = artifact(ArtifactType.ORIGINAL_STUDY, "cases/14/input.nii.gz", ArtifactStorageDisposition.MANAGED);
+        Artifact referencedArtifact = artifact(ArtifactType.LIVER_MASK, "demo/14/liver-mask.nii.gz", ArtifactStorageDisposition.REFERENCED);
+        when(caseRepository.findByIdForUpdate(14L)).thenReturn(Optional.of(completedCase));
+        when(artifactRepository.findByCaseEntityId(14L)).thenReturn(List.of(managedArtifact, referencedArtifact));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.delete("doctor@demo.local", 14L);
+
+            verify(storageService, never()).delete("cases/14/input.nii.gz");
+            verify(storageService, never()).delete("demo/14/liver-mask.nii.gz");
+            for (TransactionSynchronization synchronization : TransactionSynchronizationManager.getSynchronizations()) {
+                synchronization.afterCommit();
+            }
+            verify(storageService).delete("cases/14/input.nii.gz");
+            verify(storageService, never()).delete("demo/14/liver-mask.nii.gz");
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
     void listUsesDatabaseFilteringByOwnerAndStatus() {
         CaseServiceImpl service = service();
         CaseEntity uploadedCase = caseEntity(4L, CaseStatus.UPLOADED);
@@ -187,8 +211,7 @@ class CaseServiceStateTest {
     @Test
     void seededStatusIsResultReadyWithoutInferenceRun() {
         CaseServiceImpl service = service();
-        CaseEntity seededCase = caseEntity(12L, CaseStatus.COMPLETED);
-        seededCase.setOrigin(CaseOrigin.SEEDED_DEMO);
+        CaseEntity seededCase = CaseEntityTestSupport.withOrigin(caseEntity(12L, CaseStatus.COMPLETED), CaseOrigin.SEEDED_DEMO);
         when(caseRepository.findById(12L)).thenReturn(Optional.of(seededCase));
         when(inferenceRunRepository.findByCaseEntityIdOrderByStartedAtDesc(12L)).thenReturn(List.of());
 
@@ -204,8 +227,7 @@ class CaseServiceStateTest {
     @Test
     void seededListIgnoresLegacySyntheticInferenceRun() {
         CaseServiceImpl service = service();
-        CaseEntity seededCase = caseEntity(13L, CaseStatus.COMPLETED);
-        seededCase.setOrigin(CaseOrigin.SEEDED_DEMO);
+        CaseEntity seededCase = CaseEntityTestSupport.withOrigin(caseEntity(13L, CaseStatus.COMPLETED), CaseOrigin.SEEDED_DEMO);
         when(caseRepository.findReadableByEmailIncludingDemoOrigin("doctor@demo.local", CaseOrigin.SEEDED_DEMO)).thenReturn(List.of(seededCase));
         when(inferenceRunRepository.findLatestByCaseIds(List.of(13L))).thenReturn(List.of(legacySeededRun(seededCase)));
 
@@ -227,31 +249,30 @@ class CaseServiceStateTest {
                 auditService,
                 caseProcessingService,
                 new CaseAccessService(caseRepository, userRepository),
-                new CaseFileService(storageService),
-                "real"
+                new CaseFileService(storageService, new com.diploma.mrt.transaction.AfterCommitExecutor()),
+                new com.diploma.mrt.transaction.AfterCommitExecutor(),
+                new com.diploma.mrt.config.AppProperties(
+                        new com.diploma.mrt.config.AppProperties.Ml(null, com.diploma.mrt.entity.ExecutionMode.REAL),
+                        null,
+                        null
+                )
         );
     }
 
     private CaseEntity caseEntity(Long id, CaseStatus status) {
-        User user = user("doctor@demo.local", Role.DOCTOR);
-
-        CaseEntity caseEntity = new CaseEntity();
-        caseEntity.setId(id);
-        caseEntity.setPatientPseudoId("P-" + id);
-        caseEntity.setModality(Modality.CT);
-        caseEntity.setStatus(status);
-        caseEntity.setOrigin(CaseOrigin.LIVE_PROCESSED);
-        caseEntity.setCreatedBy(user);
-        caseEntity.setCreatedAt(Instant.now());
-        caseEntity.setUpdatedAt(Instant.now());
-        return caseEntity;
+        return CaseEntityTestSupport.newPersistedLive(id, user("doctor@demo.local", Role.DOCTOR), Modality.CT, status);
     }
 
     private Artifact sourceArtifact(String objectKey) {
+        return artifact(ArtifactType.ORIGINAL_STUDY, objectKey, ArtifactStorageDisposition.MANAGED);
+    }
+
+    private Artifact artifact(ArtifactType type, String objectKey, ArtifactStorageDisposition storageDisposition) {
         Artifact artifact = new Artifact();
-        artifact.setType(ArtifactType.ORIGINAL_STUDY);
+        artifact.setType(type);
         artifact.setObjectKey(objectKey);
         artifact.setOriginalFileName("input.nii.gz");
+        artifact.setStorageDisposition(storageDisposition);
         return artifact;
     }
 

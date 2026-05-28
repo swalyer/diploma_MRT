@@ -3,7 +3,6 @@ package com.diploma.mrt.config;
 import com.diploma.mrt.security.JwtAuthenticationFilter;
 import com.diploma.mrt.repository.UserRepository;
 import com.diploma.mrt.util.EmailNormalizer;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,16 +24,26 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final String publicBaseUrl;
+    private static final List<String> DEFAULT_LOCAL_ORIGINS = List.of(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:8088",
+            "http://127.0.0.1:8088",
+            "http://localhost",
+            "http://127.0.0.1"
+    );
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, @Value("${app.public-base-url:http://localhost}") String publicBaseUrl) {
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final AppProperties appProperties;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, AppProperties appProperties) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.publicBaseUrl = publicBaseUrl;
+        this.appProperties = appProperties;
     }
 
     @Bean
@@ -54,13 +63,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> allowedOrigins = new ArrayList<>();
-        allowedOrigins.add(publicBaseUrl);
-        allowedOrigins.add("http://localhost:5173");
-        allowedOrigins.add("http://127.0.0.1:5173");
-        allowedOrigins.add("http://localhost");
-        allowedOrigins.add("http://127.0.0.1");
-        configuration.setAllowedOrigins(allowedOrigins.stream().distinct().toList());
+        LinkedHashSet<String> allowedOrigins = new LinkedHashSet<>();
+        if (appProperties.publicBaseUrl() != null && !appProperties.publicBaseUrl().isBlank()) {
+            allowedOrigins.add(appProperties.publicBaseUrl());
+        }
+        allowedOrigins.addAll(DEFAULT_LOCAL_ORIGINS);
+        allowedOrigins.addAll(appProperties.additionalAllowedOrigins());
+        configuration.setAllowedOrigins(new ArrayList<>(allowedOrigins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition", "Content-Type"));

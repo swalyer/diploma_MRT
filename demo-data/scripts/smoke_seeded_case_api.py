@@ -17,6 +17,7 @@ DEFAULT_MANIFEST = ROOT / "demo-data" / "manifests" / "ct-single-lesion-001.json
 def main() -> int:
     args = parse_args()
     manifest = load_json(args.manifest)
+    expected_report_text = assemble_report_text(manifest["reportData"])
 
     print_step(f"Health check {args.base_url}/actuator/health")
     health = request_json(args.base_url, "GET", "/actuator/health", timeout=args.timeout)
@@ -40,7 +41,7 @@ def main() -> int:
     expect_equal(imported.get("artifactCount"), len(manifest["artifacts"]), "import artifactCount")
     expect_equal(imported.get("findingCount"), len(manifest["findings"]), "import findingCount")
     expect_equal(imported.get("report", {}).get("reportData"), manifest["reportData"], "import reportData")
-    expect_equal(imported.get("report", {}).get("reportText"), manifest["reportText"], "import reportText")
+    expect_equal(imported.get("report", {}).get("reportText"), expected_report_text, "import reportText")
     case_id = imported.get("caseId")
     expect_true(isinstance(case_id, int), "import caseId is integer")
 
@@ -89,7 +90,7 @@ def main() -> int:
         token=admin_token,
         timeout=args.timeout,
     )
-    expect_equal(report_payload.get("reportText"), manifest["reportText"], "reportText")
+    expect_equal(report_payload.get("reportText"), expected_report_text, "reportText")
     report_data = report_payload.get("reportData", {})
     expect_equal(report_data.get("modality"), manifest["modality"], "reportData modality")
     expect_true(report_data.get("executionMode") is None, "reportData executionMode is null")
@@ -231,6 +232,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--doctor-password", default="Admin123!", help="Doctor password used for read-only checks.")
     parser.add_argument("--timeout", type=float, default=20.0, help="HTTP timeout in seconds.")
     return parser.parse_args()
+
+
+def assemble_report_text(sections: dict[str, str]) -> str:
+    return "\n\n".join(
+        [
+            f"Findings: {sections['findings']}",
+            f"Impression: {sections['impression']}",
+            f"Limitations: {sections['limitations']}",
+            f"Recommendation: {sections['recommendation']}",
+        ]
+    )
 
 
 def load_json(path: Path) -> dict[str, Any]:

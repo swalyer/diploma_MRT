@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "contract:generate": "node ./scripts/generate-backend-contract.mjs",
+    "contract:check": "node ./scripts/generate-backend-contract.mjs --check",
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build"
   },

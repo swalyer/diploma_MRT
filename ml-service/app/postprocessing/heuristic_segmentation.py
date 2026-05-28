@@ -36,6 +36,21 @@ def _save_mask(mask: np.ndarray, reference_key: str, output_key: str, artifacts_
     return output_key
 
 
+def _save_evidence(evidence: np.ndarray, reference_key: str, output_key: str, artifacts_root: str) -> str:
+    ref_path = Path(artifacts_root) / reference_key
+    out_path = Path(artifacts_root) / output_key
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    reference = nib.load(str(ref_path))
+    image = nib.Nifti1Image(evidence.astype(np.float32), reference.affine, reference.header)
+    nib.save(image, str(out_path))
+    return output_key
+
+
+def evidence_key_for(mask_key: str) -> str:
+    """Sibling-file convention: <mask>.evidence.nii.gz."""
+    return f"{mask_key}.evidence.nii.gz"
+
+
 def save_heuristic_liver_mask(input_key: str, output_key: str, artifacts_root: str, modality: str) -> tuple[str, bool]:
     volume = nib.load(str(Path(artifacts_root) / input_key)).get_fdata().astype(np.float32)
     norm = _normalize(volume)
@@ -62,6 +77,7 @@ def save_heuristic_lesion_mask(input_key: str, liver_mask_key: str, output_key: 
     liver_mask = nib.load(str(Path(artifacts_root) / liver_mask_key)).get_fdata() > 0
     if liver_mask.sum() == 0:
         empty = np.zeros_like(volume, dtype=np.uint8)
+        _save_evidence(np.zeros_like(volume, dtype=np.float32), input_key, evidence_key_for(output_key), artifacts_root)
         return _save_mask(empty, input_key, output_key, artifacts_root), False
 
     norm = _normalize(volume)
@@ -73,11 +89,11 @@ def save_heuristic_lesion_mask(input_key: str, liver_mask_key: str, output_key: 
 
     high_z = 1.1 if modality == 'MRI' else 1.4
     low_z = 1.2 if modality == 'MRI' else 1.0
-    hyper = norm > (mean + high_z * std)
-    hypo = norm < (mean - low_z * std)
+    z_scores = (norm - mean) / std
+    hyper = z_scores > high_z
+    hypo = z_scores < -low_z
     candidate = liver_mask & (hyper | hypo)
 
-    # Remove thin shell artifacts and keep clinically meaningful connected components only.
     candidate = ndimage.binary_opening(candidate, iterations=1)
     candidate = ndimage.binary_closing(candidate, iterations=2)
     labeled, num = ndimage.label(candidate)
@@ -88,4 +104,6 @@ def save_heuristic_lesion_mask(input_key: str, liver_mask_key: str, output_key: 
         if int(component.sum()) >= min_voxels:
             filtered |= component
 
+    evidence = np.where(filtered, np.abs(z_scores).astype(np.float32), 0.0).astype(np.float32)
+    _save_evidence(evidence, input_key, evidence_key_for(output_key), artifacts_root)
     return _save_mask(filtered, input_key, output_key, artifacts_root), False

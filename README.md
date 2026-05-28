@@ -11,7 +11,7 @@ Incremental production-like MVP for liver CT/MRI decision support. The project k
 
 ## Supported modalities
 - **CT**: primary real pipeline for uploaded NIfTI studies (`.nii`, `.nii.gz`) with liver segmentation and lesion segmentation when weights exist.
-- **MRI**: heuristic-supported. Liver and suspicious-zone paths are available in real mode; dedicated MRI weights still improve quality when configured.
+- **MRI**: honest-ready via heuristic-supported suspicious-zone path. Liver and suspicious-zone outputs are available in real mode; dedicated MRI weights remain an optional future extension rather than an implied current capability.
 
 ## Datasets referenced for benchmarking/dev scripts
 - 3D-IRCADb-01 (CT end-to-end smoke tests)
@@ -192,15 +192,22 @@ GitHub Actions workflow lives in [`.github/workflows/ci.yml`](./.github/workflow
    - run pipeline
    - inspect timeline, report, artifacts, 2D/3D tabs
 
-## Seeded CT Demo Pack
+## Seeded Demo Packs
 - Committed seeded CT manifests live in [`demo-data/manifests`](./demo-data/manifests):
   - `ct-normal-001.json`
   - `ct-single-lesion-001.json`
   - `ct-multifocal-001.json`
+- Committed honest-ready seeded MRI manifests live in [`demo-data/manifests`](./demo-data/manifests):
+  - `mri-normal-001.json`
+  - `mri-single-lesion-001.json`
 - Lightweight artifact-backed demo files live under [`storage/demo/cases`](./storage/demo/cases).
-- Regenerate the committed demo pack from the repository smoke fixture with:
+- Regenerate the committed CT demo pack from the repository smoke fixture with:
   ```bash
   python3 demo-data/scripts/build_seeded_ct_demo_pack.py
+  ```
+- Regenerate the committed MRI honest-ready demo pack with:
+  ```bash
+  python3 demo-data/scripts/build_seeded_mri_demo_pack.py
   ```
 - Run backend/API seeded smoke against a live local stack with:
   ```bash
@@ -215,7 +222,7 @@ GitHub Actions workflow lives in [`.github/workflows/ci.yml`](./.github/workflow
 ## What is real vs mock vs experimental (strict)
 - **Real (when configured):** CT segmentation pipeline stages backed by external model tooling.
 - **Mock:** deterministic artifact/result generation with `ML_MODE=mock`.
-- **Heuristic-supported:** MRI path and no-weights lesion fallback branches.
+- **Heuristic-supported / honest-ready:** MRI suspicious-zone path and no-weights lesion fallback branches.
 - **Missing:** OHIF DICOM-native frontend flow.
 
 ## Distributed deployment docs
@@ -223,6 +230,7 @@ GitHub Actions workflow lives in [`.github/workflows/ci.yml`](./.github/workflow
 - `docs/deployment-topology.md`
 - `docs/database-topology.md`
 - `docs/ports-and-flows.md`
+- `docs/demo-defense-script.md`
 - diagrams in `docs/diagrams/*.mmd`
 
 Host-oriented compose files:

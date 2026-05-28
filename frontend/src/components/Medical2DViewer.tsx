@@ -1,8 +1,8 @@
-import { Alert, Box, CircularProgress, FormControlLabel, Grid2, MenuItem, Slider, Stack, Switch, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, CircularProgress, FormControlLabel, Grid2, MenuItem, Slider, Stack, Switch, TextField, Typography } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as nifti from 'nifti-reader-js'
 import { authorizedFetch } from '../api/client'
-import { ARTIFACT_TYPES, type ArtifactItem } from '../types'
+import { ARTIFACT_TYPES, FINDING_TYPES, type ArtifactItem, type FindingItem } from '../types'
 
 type TypedArray = Int8Array | Uint8Array | Int16Array | Int32Array | Float32Array | Float64Array | Uint16Array | Uint32Array
 type TypedArrayConstructor<T extends TypedArray> = {
@@ -61,8 +61,6 @@ function convertNiftiImage(header: any, image: ArrayBuffer | ArrayBufferView): T
   }
 }
 
-type NiftiVolume = { width: number; height: number; depth: number; data: TypedArray; sourceType: string }
-
 async function loadNifti(url: string): Promise<{ header: any; data: TypedArray }> {
   const response = await authorizedFetch(url)
   if (!response.ok) throw new Error(`Failed to load NIfTI: HTTP ${response.status}`)
@@ -75,7 +73,42 @@ async function loadNifti(url: string): Promise<{ header: any; data: TypedArray }
   return { header, data: convertNiftiImage(header, image) }
 }
 
-export function Medical2DViewer({ artifacts }: { artifacts: ArtifactItem[] }) {
+function clampSlice(slice: number, depth: number): number {
+  return Math.max(0, Math.min(depth - 1, slice))
+}
+
+function sliceIndexForFinding(finding: FindingItem | null, depth: number): number | null {
+  if (!finding?.location) {
+    return null
+  }
+
+  const centroidZ = finding.location.centroid?.[2]
+  if (typeof centroidZ === 'number' && Number.isFinite(centroidZ)) {
+    return clampSlice(Math.round(centroidZ), depth)
+  }
+
+  const minZ = finding.location.bbox?.min?.[2]
+  const maxZ = finding.location.bbox?.max?.[2]
+  if (typeof minZ === 'number' && typeof maxZ === 'number') {
+    return clampSlice(Math.round((minZ + maxZ) / 2), depth)
+  }
+
+  return null
+}
+
+type NiftiVolume = { width: number; height: number; depth: number; data: TypedArray; sourceType: string }
+
+export function Medical2DViewer({
+  artifacts,
+  findings,
+  selectedFindingId,
+  onSelectFinding,
+}: {
+  artifacts: ArtifactItem[]
+  findings: FindingItem[]
+  selectedFindingId: number | null
+  onSelectFinding?: (findingId: number) => void
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +123,15 @@ export function Medical2DViewer({ artifacts }: { artifacts: ArtifactItem[] }) {
   const [lesionMask, setLesionMask] = useState<TypedArray | null>(null)
 
   const byType = useMemo(() => Object.fromEntries(artifacts.map((a) => [a.type, a])), [artifacts])
+  const suspiciousZones = useMemo(() => findings.filter((finding) => finding.type === FINDING_TYPES.LESION), [findings])
+  const selectedFinding = useMemo(
+    () => suspiciousZones.find((finding) => finding.id === selectedFindingId) ?? null,
+    [suspiciousZones, selectedFindingId]
+  )
+  const selectedFindingSlice = useMemo(
+    () => (volume && selectedFinding ? sliceIndexForFinding(selectedFinding, volume.depth) : null),
+    [selectedFinding, volume]
+  )
 
   useEffect(() => {
     const load = async () => {
@@ -123,6 +165,11 @@ export function Medical2DViewer({ artifacts }: { artifacts: ArtifactItem[] }) {
     }
     load().catch(() => setError('Viewer load failure'))
   }, [byType, baseType])
+
+  useEffect(() => {
+    if (selectedFindingSlice === null) return
+    setSlice((currentSlice) => (currentSlice === selectedFindingSlice ? currentSlice : selectedFindingSlice))
+  }, [selectedFindingSlice])
 
   useEffect(() => {
     if (!volume || !canvasRef.current) return
@@ -164,6 +211,14 @@ export function Medical2DViewer({ artifacts }: { artifacts: ArtifactItem[] }) {
   if (error) return <Alert severity="warning">{error}</Alert>
   if (!volume) return <Alert severity="info">No NIfTI-compatible volume artifacts available yet.</Alert>
 
+  const focusFinding = (finding: FindingItem) => {
+    onSelectFinding?.(finding.id)
+    const targetSlice = sliceIndexForFinding(finding, volume.depth)
+    if (targetSlice !== null) {
+      setSlice(targetSlice)
+    }
+  }
+
   return <Stack spacing={2}>
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
       <TextField select size="small" label="Base volume" value={baseType} onChange={(e) => setBaseType(e.target.value as typeof baseType)} sx={{ minWidth: 220 }}>
@@ -191,6 +246,41 @@ export function Medical2DViewer({ artifacts }: { artifacts: ArtifactItem[] }) {
           <Slider min={-400} max={400} value={windowCenter} onChange={(_, v) => setWindowCenter(Number(v))} />
           <FormControlLabel control={<Switch checked={showLiver} onChange={(_, c) => setShowLiver(c)} />} label="Liver mask overlay" />
           <FormControlLabel control={<Switch checked={showLesion} onChange={(_, c) => setShowLesion(c)} />} label="Lesion mask overlay" />
+          {selectedFinding && (
+            <Alert severity="info" data-testid="viewer-2d-selected-finding">
+              Focused finding: {selectedFinding.label}
+              {selectedFindingSlice !== null ? ` · slice ${selectedFindingSlice + 1}/${volume.depth}` : ' · spatial slice hint unavailable'}
+            </Alert>
+          )}
+          {suspiciousZones.length > 0 && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">Finding-to-slice navigation</Typography>
+              {suspiciousZones.map((finding) => {
+                const focusSlice = sliceIndexForFinding(finding, volume.depth)
+                return (
+                  <Stack
+                    key={finding.id}
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    alignItems={{ xs: 'stretch', sm: 'center' }}
+                  >
+                    <Typography variant="body2" sx={{ flex: 1 }}>
+                      {finding.label}
+                      {focusSlice !== null ? ` · slice ${focusSlice + 1}` : ' · no slice hint'}
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant={selectedFindingId === finding.id ? 'contained' : 'outlined'}
+                      onClick={() => focusFinding(finding)}
+                      data-testid={`viewer-2d-focus-finding-${finding.id}`}
+                    >
+                      Focus slice
+                    </Button>
+                  </Stack>
+                )
+              })}
+            </Stack>
+          )}
         </Stack>
       </Grid2>
     </Grid2>

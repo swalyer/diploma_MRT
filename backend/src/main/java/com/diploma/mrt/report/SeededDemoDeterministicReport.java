@@ -5,7 +5,9 @@ import com.diploma.mrt.model.ReportData;
 
 public record SeededDemoDeterministicReport(
         DemoManifestReportData manifestReportData,
-        ReportData reportData,
-        String reportText
+        ReportData reportData
 ) {
+    public String reportText() {
+        return CanonicalReportTextAssembler.assemble(reportData.sections());
+    }
 }

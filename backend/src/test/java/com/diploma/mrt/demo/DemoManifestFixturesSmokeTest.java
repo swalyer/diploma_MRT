@@ -18,6 +18,7 @@ import com.diploma.mrt.service.impl.CaseAccessService;
 import com.diploma.mrt.service.impl.CaseMaterializationService;
 import com.diploma.mrt.service.impl.LocalStorageService;
 import com.diploma.mrt.service.materialization.DemoManifestMaterializationMapper;
+import com.diploma.mrt.testsupport.CaseEntityTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,7 @@ class DemoManifestFixturesSmokeTest {
         when(caseRepository.save(any(CaseEntity.class))).thenAnswer((Answer<CaseEntity>) invocation -> {
             CaseEntity entity = invocation.getArgument(0);
             if (entity.getId() == null) {
-                entity.setId(sequence.incrementAndGet());
+                CaseEntityTestSupport.assignId(entity, sequence.incrementAndGet());
             }
             return entity;
         });
@@ -79,7 +80,7 @@ class DemoManifestFixturesSmokeTest {
                 auditService,
                 new CaseAccessService(caseRepository, userRepository),
                 new DemoManifestMaterializationMapper(),
-                new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService),
+                new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService, new com.diploma.mrt.transaction.AfterCommitExecutor()),
                 Validation.buildDefaultValidatorFactory().getValidator()
         );
 
@@ -88,7 +89,7 @@ class DemoManifestFixturesSmokeTest {
             manifests = stream.filter(path -> path.toString().endsWith(".json")).sorted().toList();
         }
 
-        assertEquals(3, manifests.size());
+        assertEquals(5, manifests.size());
         for (Path manifestPath : manifests) {
             DemoManifest manifest = objectMapper.readValue(Files.readString(manifestPath), DemoManifest.class);
 

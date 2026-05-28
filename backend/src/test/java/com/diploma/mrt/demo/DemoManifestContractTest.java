@@ -52,8 +52,7 @@ class DemoManifestContractTest {
                     "impression": "Single lesion component in liver.",
                     "limitations": "Demo case.",
                     "recommendation": "Review source images."
-                  },
-                  "reportText": "Deterministic report text"
+                  }
                 }
                 """;
 

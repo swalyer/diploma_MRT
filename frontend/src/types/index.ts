@@ -1,40 +1,35 @@
-export const ARTIFACT_TYPES = {
-  ORIGINAL_STUDY: 'ORIGINAL_STUDY',
-  ENHANCED: 'ENHANCED',
-  ENHANCED_VOLUME: 'ENHANCED_VOLUME',
-  LIVER_MASK: 'LIVER_MASK',
-  LESION_MASK: 'LESION_MASK',
-  LIVER_MESH: 'LIVER_MESH',
-  LESION_MESH: 'LESION_MESH'
-} as const
+import { ARTIFACT_TYPES, AUDIT_ACTIONS, FINDING_TYPES } from './generated-backend-contract'
+import type {
+  ArtifactType,
+  AuditAction,
+  CaseOrigin,
+  CaseResultSource,
+  CaseStatus,
+  DemoCategory,
+  ExecutionMode,
+  FindingType,
+  InferenceStatus,
+  Modality,
+} from './generated-backend-contract'
 
-export type ArtifactType = (typeof ARTIFACT_TYPES)[keyof typeof ARTIFACT_TYPES]
+export {
+  ARTIFACT_TYPES,
+  AUDIT_ACTIONS,
+  FINDING_TYPES,
+} from './generated-backend-contract'
 
-export type ExecutionMode = 'mock' | 'real'
-export type CaseOrigin = 'LIVE_PROCESSED' | 'SEEDED_DEMO'
-export type CaseResultSource = 'NONE' | 'ML_INFERENCE' | 'SEEDED_IMPORT'
-export type DemoCategory = 'NORMAL' | 'SINGLE_LESION' | 'MULTIFOCAL' | 'DIFFICULT'
-
-export const FINDING_TYPES = {
-  LESION: 'LESION'
-} as const
-
-export type FindingType = (typeof FINDING_TYPES)[keyof typeof FINDING_TYPES]
-
-export const AUDIT_ACTIONS = {
-  CASE_CREATED: 'CASE_CREATED',
-  CASE_UPLOADED: 'CASE_UPLOADED',
-  DEMO_CASE_IMPORTED: 'DEMO_CASE_IMPORTED',
-  DEMO_CASE_UPDATED: 'DEMO_CASE_UPDATED',
-  INFERENCE_ENQUEUED: 'INFERENCE_ENQUEUED',
-  INFERENCE_STARTED: 'INFERENCE_STARTED',
-  INFERENCE_REQUEST_SENT: 'INFERENCE_REQUEST_SENT',
-  INFERENCE_COMPLETED: 'INFERENCE_COMPLETED',
-  INFERENCE_FAILED: 'INFERENCE_FAILED',
-  INFERENCE_RECOVERED_AFTER_RESTART: 'INFERENCE_RECOVERED_AFTER_RESTART'
-} as const
-
-export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS]
+export type {
+  ArtifactType,
+  AuditAction,
+  CaseOrigin,
+  CaseResultSource,
+  CaseStatus,
+  DemoCategory,
+  ExecutionMode,
+  FindingType,
+  InferenceStatus,
+  Modality,
+} from './generated-backend-contract'
 
 export type BoundingBox = {
   min: number[]
@@ -80,7 +75,7 @@ export type ReportCapabilities = {
 }
 
 export type ReportData = {
-  modality: 'CT' | 'MRI'
+  modality: Modality
   executionMode: ExecutionMode | null
   lesionCount: number
   evidenceBound: boolean
@@ -91,9 +86,9 @@ export type ReportData = {
 export type CaseItem = {
   id: number
   patientPseudoId: string
-  modality: 'CT' | 'MRI'
-  status: string
-  inferenceStatus?: 'STARTED' | 'COMPLETED' | 'FAILED' | null
+  modality: Modality
+  status: CaseStatus
+  inferenceStatus?: InferenceStatus | null
   executionMode?: ExecutionMode | null
   origin?: CaseOrigin | null
   demoCategory?: DemoCategory | null
@@ -107,8 +102,8 @@ export type CaseItem = {
 
 export type StatusPayload = {
   caseId: number
-  status: string
-  inferenceStatus: 'STARTED' | 'COMPLETED' | 'FAILED' | null
+  status: CaseStatus
+  inferenceStatus: InferenceStatus | null
   executionMode: ExecutionMode | null
   modelVersion: string | null
   metrics: MlMetrics | null

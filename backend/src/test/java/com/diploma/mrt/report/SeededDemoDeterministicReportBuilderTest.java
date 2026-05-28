@@ -61,15 +61,45 @@ class SeededDemoDeterministicReportBuilderTest {
         assertEquals(true, report.reportData().capabilities().supports3dLesion());
     }
 
+    @Test
+    void buildsDeterministicReportForHeuristicMriCase() {
+        SeededDemoDeterministicReport report = SeededDemoDeterministicReportBuilder.build(
+                manifest(
+                        Modality.MRI,
+                        List.of(lesionFinding("Heuristic suspicious-zone component #1"))
+                )
+        );
+
+        assertEquals(1, report.reportData().lesionCount());
+        assertEquals(
+                "Structured output contains 1 heuristic suspicious-zone component(s) derived from the lesion mask.",
+                report.manifestReportData().findings()
+        );
+        assertEquals(
+                "1 heuristic suspicious-zone component(s) were derived from seeded artifact masks and require clinical correlation.",
+                report.manifestReportData().impression()
+        );
+        assertEquals(
+                "Seeded MRI demo import reuses heuristic-supported artifact findings and report sections; "
+                        + "it does not represent a live ML execution. MRI suspicious-zone output remains heuristic-supported "
+                        + "in the current scope. All outputs remain decision-support only and depend on artifact quality.",
+                report.manifestReportData().limitations()
+        );
+    }
+
     private DemoManifest manifest(List<DemoManifestFinding> findings) {
+        return manifest(Modality.CT, findings);
+    }
+
+    private DemoManifest manifest(Modality modality, List<DemoManifestFinding> findings) {
         return new DemoManifest(
                 DemoManifestSchemaVersion.V1,
-                "ct-demo-001",
+                modality == Modality.MRI ? "mri-demo-001" : "ct-demo-001",
                 CaseOrigin.SEEDED_DEMO,
-                Modality.CT,
+                modality,
                 findings.isEmpty() ? DemoCategory.NORMAL : DemoCategory.MULTIFOCAL,
                 "demo-patient",
-                "Repository CT smoke fixture",
+                modality == Modality.MRI ? "Repository MRI smoke fixture" : "Repository CT smoke fixture",
                 "Synthetic attribution",
                 List.of(
                         artifact(ArtifactType.ORIGINAL_STUDY),
@@ -79,8 +109,7 @@ class SeededDemoDeterministicReportBuilderTest {
                         artifact(ArtifactType.LESION_MESH)
                 ),
                 findings,
-                new DemoManifestReportData("placeholder", "placeholder", "placeholder", "placeholder"),
-                "placeholder"
+                new DemoManifestReportData("placeholder", "placeholder", "placeholder", "placeholder")
         );
     }
 

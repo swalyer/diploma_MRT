@@ -141,12 +141,13 @@ def main() -> None:
 def build_demo_case(
     *,
     case_slug: str,
+    modality: str = "CT",
     category: str,
     patient_pseudo_id: str,
     source_dataset: str,
     source_attribution: str,
     original_source: Path,
-    enhanced_source: Path,
+    enhanced_source: Path | None,
     liver_mask_source: Path,
     liver_mesh_source: Path,
     lesion_mask_path: Path,
@@ -162,17 +163,17 @@ def build_demo_case(
     liver_mesh_path = case_root / "liver.glb"
 
     shutil.copyfile(original_source, original_path)
-    shutil.copyfile(enhanced_source, enhanced_path)
+    shutil.copyfile(enhanced_source if enhanced_source is not None else original_source, enhanced_path)
     shutil.copyfile(liver_mask_source, liver_mask_path)
     shutil.copyfile(liver_mesh_source, liver_mesh_path)
 
     lesion_count = len(findings)
-    sections = build_report_sections(lesion_count)
+    sections = build_report_sections(lesion_count, modality=modality)
     manifest = {
         "schemaVersion": "v1",
         "caseSlug": case_slug,
         "origin": "SEEDED_DEMO",
-        "modality": "CT",
+        "modality": modality,
         "category": category,
         "patientPseudoId": patient_pseudo_id,
         "sourceDataset": source_dataset,
@@ -187,7 +188,6 @@ def build_demo_case(
         ],
         "findings": findings,
         "reportData": sections,
-        "reportText": assemble_report_text(sections),
     }
 
     manifest_path = MANIFEST_ROOT / f"{case_slug}.json"
@@ -221,21 +221,38 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def build_report_sections(lesion_count: int) -> dict[str, str]:
-    findings = (
-        f"Structured output contains {lesion_count} lesion component(s) derived from the lesion mask."
-        if lesion_count > 0
-        else "Structured output contains no lesion components derived from the lesion mask."
-    )
-    impression = (
-        f"{lesion_count} lesion component(s) were derived from seeded artifact masks and require clinical correlation."
-        if lesion_count > 0
-        else "No lesion components were derived from the seeded artifact masks."
-    )
-    limitations = (
-        "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. "
-        "All outputs remain decision-support only and depend on artifact quality."
-    )
+def build_report_sections(lesion_count: int, *, modality: str = "CT") -> dict[str, str]:
+    if modality == "MRI":
+        findings = (
+            f"Structured output contains {lesion_count} heuristic suspicious-zone component(s) derived from the lesion mask."
+            if lesion_count > 0
+            else "Structured output contains no heuristic suspicious-zone components derived from the lesion mask."
+        )
+        impression = (
+            f"{lesion_count} heuristic suspicious-zone component(s) were derived from seeded artifact masks and require clinical correlation."
+            if lesion_count > 0
+            else "No heuristic suspicious-zone components were derived from the seeded artifact masks."
+        )
+        limitations = (
+            "Seeded MRI demo import reuses heuristic-supported artifact findings and report sections; "
+            "it does not represent a live ML execution. MRI suspicious-zone output remains heuristic-supported "
+            "in the current scope. All outputs remain decision-support only and depend on artifact quality."
+        )
+    else:
+        findings = (
+            f"Structured output contains {lesion_count} lesion component(s) derived from the lesion mask."
+            if lesion_count > 0
+            else "Structured output contains no lesion components derived from the lesion mask."
+        )
+        impression = (
+            f"{lesion_count} lesion component(s) were derived from seeded artifact masks and require clinical correlation."
+            if lesion_count > 0
+            else "No lesion components were derived from the seeded artifact masks."
+        )
+        limitations = (
+            "Seeded demo import reuses artifact-backed findings and report sections; it does not represent a live ML execution. "
+            "All outputs remain decision-support only and depend on artifact quality."
+        )
     recommendation = "Correlate with source images and radiologist review before clinical use."
     return {
         "findings": findings,
@@ -245,32 +262,33 @@ def build_report_sections(lesion_count: int) -> dict[str, str]:
     }
 
 
-def assemble_report_text(sections: dict[str, str]) -> str:
-    return "\n\n".join(
-        [
-            f"Findings: {sections['findings']}",
-            f"Impression: {sections['impression']}",
-            f"Limitations: {sections['limitations']}",
-            f"Recommendation: {sections['recommendation']}",
-        ]
-    )
+def finding_from_component(
+    component: ComponentStat,
+    *,
+    label_prefix: str = "Lesion component",
+    segment: str | None = None,
+    suspicion: str | None = None,
+) -> dict[str, object]:
+    location: dict[str, object] = {
+        "centroid": [round(value, 3) for value in component.centroid],
+        "bbox": {
+            "min": list(component.bbox_min),
+            "max": list(component.bbox_max),
+        },
+        "extent": list(component.extent),
+    }
+    if segment is not None:
+        location["segment"] = segment
+    if suspicion is not None:
+        location["suspicion"] = suspicion
 
-
-def finding_from_component(component: ComponentStat) -> dict[str, object]:
     return {
         "type": "LESION",
-        "label": f"Lesion component #{component.component_id}",
+        "label": f"{label_prefix} #{component.component_id}",
         "confidence": None,
         "sizeMm": component.size_mm,
         "volumeMm3": component.volume_mm3,
-        "location": {
-            "centroid": [round(value, 3) for value in component.centroid],
-            "bbox": {
-                "min": list(component.bbox_min),
-                "max": list(component.bbox_max),
-            },
-            "extent": list(component.extent),
-        },
+        "location": location,
     }
 
 

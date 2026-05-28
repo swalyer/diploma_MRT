@@ -8,7 +8,7 @@ Legend: Implemented / Partial / Missing / Broken / Inferred only
 | Startup | Compose runnable proof in this environment | Partial | Docker CLI unavailable in current runtime. |
 | Auth | Register/login/JWT | Implemented | Backend + frontend integrated. |
 | Cases | Create/list/get/delete ownership-safe | Implemented | `findOwnedCase` gate in service layer. |
-| Upload | NIfTI/DICOM/zip acceptance | Implemented | Extension-gated upload + storage object key persistence. |
+| Upload | NIfTI acceptance | Implemented | Upload contract is explicitly limited to `.nii` / `.nii.gz`. |
 | Processing | Async orchestration + status transitions | Implemented | Case + inference run transitions persisted. |
 | Processing truth | Execution mode exposed | Implemented | Added to status DTO/API/UI. |
 | Processing truth | Model version exposed | Implemented | Added to status DTO/API/UI from run record. |
@@ -17,7 +17,7 @@ Legend: Implemented / Partial / Missing / Broken / Inferred only
 | Storage | Absolute local path leak via API | Implemented (no leak) | API exposes artifact id + download URL only. |
 | ML | Mock pipeline | Implemented | Tests passing. |
 | ML | CT real path | Partial | Depends on external model binaries/weights. |
-| ML | MRI path | Implemented/Heuristic-supported | Works without bundled MRI weights; quality remains below dedicated model-backed path. |
+| ML | MRI path | Implemented/Honest-ready | Heuristic-supported suspicious-zone path is operable and explicitly labeled as such. |
 | Viewer 2D | Artifact-backed NIfTI | Implemented | Production build passes with nifti dependency. |
 | Viewer 2D | OHIF DICOM-native | Missing | Not wired end-to-end yet. |
 | Viewer 3D | Artifact-backed mesh render | Implemented | Uses actual mesh artifacts only. |

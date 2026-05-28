@@ -53,20 +53,33 @@ def _build_sections(report_input: ReportBuildInput) -> ReportSections:
             recommendation="Use mock outputs only for integration, UI, and workflow verification.",
         )
 
-    findings = (
-        f"Structured output contains {report_input.lesion_count} lesion component(s) derived from the lesion mask."
-        if report_input.lesion_count > 0
-        else "Structured output contains no lesion components derived from the lesion mask."
-    )
-    impression = (
-        f"{report_input.lesion_count} lesion component(s) were derived from pipeline output and require clinical correlation."
-        if report_input.lesion_count > 0
-        else "No lesion components were derived from pipeline output."
-    )
+    mri_heuristic = report_input.modality == Modality.MRI and report_input.lesion_model is False
+    if mri_heuristic:
+        findings = (
+            f"Structured output contains {report_input.lesion_count} heuristic suspicious-zone component(s) derived from the lesion mask."
+            if report_input.lesion_count > 0
+            else "Structured output contains no heuristic suspicious-zone components derived from the lesion mask."
+        )
+        impression = (
+            f"{report_input.lesion_count} heuristic suspicious-zone component(s) were derived from pipeline output and require clinical correlation."
+            if report_input.lesion_count > 0
+            else "No heuristic suspicious-zone components were derived from pipeline output."
+        )
+    else:
+        findings = (
+            f"Structured output contains {report_input.lesion_count} lesion component(s) derived from the lesion mask."
+            if report_input.lesion_count > 0
+            else "Structured output contains no lesion components derived from the lesion mask."
+        )
+        impression = (
+            f"{report_input.lesion_count} lesion component(s) were derived from pipeline output and require clinical correlation."
+            if report_input.lesion_count > 0
+            else "No lesion components were derived from pipeline output."
+        )
 
     limitations_parts = []
-    if report_input.modality == Modality.MRI and report_input.lesion_model is False:
-        limitations_parts.append("MRI lesion output is heuristic-supported in the current pipeline.")
+    if mri_heuristic:
+        limitations_parts.append("MRI suspicious-zone output is heuristic-supported in the current pipeline.")
     elif report_input.lesion_model is False:
         limitations_parts.append("Lesion output was produced without a dedicated lesion model.")
     if report_input.liver_model is False:

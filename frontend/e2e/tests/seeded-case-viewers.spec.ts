@@ -64,6 +64,8 @@ test('seeded demo case exposes 2D, 3D, and artifact download workflows', async (
   await expect(page.getByTestId('viewer-2d-canvas')).toBeVisible()
   await expect(page.getByText(/Slice \d+\/\d+/)).toBeVisible()
   await expect(page.getByText(/NIfTI artifact-backed rendering/i)).toBeVisible()
+  await page.getByTestId(/viewer-2d-focus-finding-/).first().click()
+  await expect(page.getByTestId('viewer-2d-selected-finding')).toContainText(/Focused finding:/)
 
   await page.getByRole('tab', { name: '3D Viewer' }).click()
   await expect(page.getByTestId('viewer-3d-root')).toBeVisible()

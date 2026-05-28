@@ -20,7 +20,7 @@ import { useParams } from 'react-router-dom'
 import { api, downloadWithAuth } from '../api/client'
 import { Medical2DViewer } from '../components/Medical2DViewer'
 import { Viewer3D } from '../components/Viewer3D'
-import { ARTIFACT_TYPES, AUDIT_ACTIONS, type ArtifactItem, type CaseItem, type FindingItem, type ProcessDetails, type ReportData, type StatusPayload, type Viewer3DPayload } from '../types'
+import { ARTIFACT_TYPES, AUDIT_ACTIONS, FINDING_TYPES, type ArtifactItem, type CaseItem, type FindingItem, type ProcessDetails, type ReportData, type StatusPayload, type Viewer3DPayload } from '../types'
 
 type PageState = 'loading' | 'error' | 'success' | 'success-degraded'
 
@@ -33,14 +33,17 @@ export function CaseDetailsPage() {
   const [artifacts, setArtifacts] = useState<ArtifactItem[]>([])
   const [findings, setFindings] = useState<FindingItem[]>([])
   const [viewer3d, setViewer3d] = useState<Viewer3DPayload | null>(null)
+  const [selectedFindingId, setSelectedFindingId] = useState<number | null>(null)
   const [tab, setTab] = useState(0)
   const [state, setState] = useState<PageState>('loading')
   const [error, setError] = useState<string | null>(null)
 
-  const refresh = async () => {
+  const refresh = async (options?: { silent?: boolean }) => {
     if (!id) return
-    setState('loading')
-    setError(null)
+    if (!options?.silent) {
+      setState('loading')
+      setError(null)
+    }
 
     try {
       const core = await Promise.all([
@@ -75,6 +78,11 @@ export function CaseDetailsPage() {
       setState(degraded ? 'success-degraded' : 'success')
 
     } catch {
+      if (options?.silent) {
+        setState((current) => (current === 'success' ? 'success-degraded' : current))
+        setError((current) => current ?? 'Background refresh failed while case processing was still active.')
+        return
+      }
       setState('error')
       setError('Unable to load case core data. We only show a minimal-safe shell until verified data is available.')
     }
@@ -83,6 +91,28 @@ export function CaseDetailsPage() {
   useEffect(() => {
     refresh().catch(() => setState('error'))
   }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    const shouldPoll = caseSummary?.origin !== 'SEEDED_DEMO' && (status?.status === 'PROCESSING' || status?.inferenceStatus === 'STARTED')
+    if (!shouldPoll) return
+
+    const timeoutId = window.setTimeout(() => {
+      refresh({ silent: true }).catch(() => undefined)
+    }, 2000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [id, caseSummary?.origin, status?.status, status?.inferenceStatus])
+
+  useEffect(() => {
+    const suspiciousZones = findings.filter((finding) => finding.type === FINDING_TYPES.LESION)
+    setSelectedFindingId((current) => {
+      if (current !== null && suspiciousZones.some((finding) => finding.id === current)) {
+        return current
+      }
+      return suspiciousZones[0]?.id ?? null
+    })
+  }, [findings])
 
   const start = async () => {
     if (!id || state === 'error') return
@@ -193,7 +223,7 @@ export function CaseDetailsPage() {
                   <Chip size="small" label={`Lesion mask: ${capability.lesionMask ? 'available' : 'unavailable'}`} color={capability.lesionMask ? 'success' : 'default'} />
                   <Chip size="small" label={`Liver mesh: ${capability.liverMesh ? 'available' : 'unavailable'}`} color={capability.liverMesh ? 'success' : 'default'} />
                   <Chip size="small" label={`Lesion mesh: ${capability.lesionMesh ? 'available' : 'unavailable'}`} color={capability.lesionMesh ? 'success' : 'default'} />
-                  {caseSummary?.modality === 'MRI' && <Chip size="small" color="warning" label="MRI heuristic-supported" />}
+                  {caseSummary?.modality === 'MRI' && <Chip size="small" color="warning" label="MRI honest-ready · heuristic-supported" />}
                 </Stack>
               </Grid2>
               <Grid2 size={{ xs: 12, lg: 4 }}>
@@ -249,7 +279,7 @@ export function CaseDetailsPage() {
       )}
 
       {tab === 1 && (
-        <Card><CardContent><Medical2DViewer artifacts={artifacts} /></CardContent></Card>
+        <Card><CardContent><Medical2DViewer artifacts={artifacts} findings={findings} selectedFindingId={selectedFindingId} onSelectFinding={setSelectedFindingId} /></CardContent></Card>
       )}
 
       {tab === 2 && (
@@ -283,14 +313,26 @@ export function CaseDetailsPage() {
             <Divider />
             <Typography variant="subtitle2">Structured findings</Typography>
             {!findings.length ? <Alert severity="info">{inferenceFailed ? 'No findings because inference failed.' : 'No structured findings returned.'}</Alert> : findings.map((f) => (
-              <Typography key={f.id} variant="body2">{f.label} · volume {f.volumeMm3 ?? 'N/A'} mm³ · confidence {f.confidence ?? 'N/A'}</Typography>
+              <Stack key={f.id} direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }}>
+                <Typography variant="body2" sx={{ flex: 1 }}>{f.label} · volume {f.volumeMm3 ?? 'N/A'} mm³ · confidence {f.confidence ?? 'N/A'}</Typography>
+                <Button
+                  size="small"
+                  variant={selectedFindingId === f.id ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    setSelectedFindingId(f.id)
+                    setTab(1)
+                  }}
+                >
+                  Jump to slice
+                </Button>
+              </Stack>
             ))}
           </Stack>
         </CardContent></Card>
       )}
 
       {tab === 3 && (
-        <Card><CardContent><Viewer3D liverArtifactId={viewer3d?.liverMeshArtifactId ?? null} lesionArtifactId={viewer3d?.lesionMeshArtifactId ?? null} findings={findings} /></CardContent></Card>
+        <Card><CardContent><Viewer3D liverArtifactId={viewer3d?.liverMeshArtifactId ?? null} lesionArtifactId={viewer3d?.lesionMeshArtifactId ?? null} findings={findings} selectedFindingId={selectedFindingId} onSelectFinding={setSelectedFindingId} /></CardContent></Card>
       )}
 
       {tab === 4 && (

@@ -3,8 +3,13 @@
 **/.venv
 **/__pycache__
 **/*.pyc
+**/*.tsbuildinfo
 **/target
 .env
 .DS_Store
 *.log
+.idea/
+frontend/.npm-cache/
+frontend/e2e/.playwright-browsers/
+frontend/e2e/test-results/
 AGENTS.md

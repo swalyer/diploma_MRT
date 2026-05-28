@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 test('doctor can create, upload, process, and review a case', async ({ page }) => {
-  const fixturePath = path.resolve(__dirname, '../fixtures/mock-study.nii.gz')
+  const fixturePath = path.resolve(__dirname, '../../../example4d.nii.gz')
   const pseudoId = `E2E-${Date.now()}`
 
   await page.goto('/login')

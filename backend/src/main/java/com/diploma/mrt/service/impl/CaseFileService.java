@@ -2,9 +2,8 @@ package com.diploma.mrt.service.impl;
 
 import com.diploma.mrt.exception.BadRequestException;
 import com.diploma.mrt.service.StorageService;
+import com.diploma.mrt.transaction.AfterCommitExecutor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -17,9 +16,11 @@ import java.util.zip.GZIPInputStream;
 @Service
 public class CaseFileService {
     private final StorageService storageService;
+    private final AfterCommitExecutor afterCommitExecutor;
 
-    public CaseFileService(StorageService storageService) {
+    public CaseFileService(StorageService storageService, AfterCommitExecutor afterCommitExecutor) {
         this.storageService = storageService;
+        this.afterCommitExecutor = afterCommitExecutor;
     }
 
     public void validateUploadedStudy(MultipartFile file) {
@@ -41,31 +42,14 @@ public class CaseFileService {
     }
 
     public void registerDeleteAfterCommit(List<String> objectKeys) {
-        if (objectKeys.isEmpty() || !TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (objectKeys.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                for (String objectKey : objectKeys) {
-                    storageService.delete(objectKey);
-                }
-            }
-        });
+        afterCommitExecutor.runAfterCommitInTransaction(() -> objectKeys.forEach(storageService::delete));
     }
 
     public void registerDeleteOnRollback(String objectKey) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status == STATUS_ROLLED_BACK) {
-                    storageService.delete(objectKey);
-                }
-            }
-        });
+        afterCommitExecutor.runAfterRollback(() -> storageService.delete(objectKey));
     }
 
     private void validateNiftiHeader(InputStream inputStream) throws IOException {

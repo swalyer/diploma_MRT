@@ -2,7 +2,6 @@ package com.diploma.mrt.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.time.Instant;
 import java.util.EnumSet;
@@ -13,7 +12,6 @@ import com.diploma.mrt.exception.ConflictException;
 @Entity
 @Table(name = "analysis_case")
 @Getter
-@Setter
 public class CaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -31,6 +31,7 @@ import com.diploma.mrt.service.StorageService;
 import com.diploma.mrt.service.impl.CaseAccessService;
 import com.diploma.mrt.service.impl.CaseMaterializationService;
 import com.diploma.mrt.service.materialization.DemoManifestMaterializationMapper;
+import com.diploma.mrt.testsupport.CaseEntityTestSupport;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +99,7 @@ class DemoCaseImportServiceTest {
                 auditService,
                 new CaseAccessService(caseRepository, userRepository),
                 new DemoManifestMaterializationMapper(),
-                new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService),
+                new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService, new com.diploma.mrt.transaction.AfterCommitExecutor()),
                 Validation.buildDefaultValidatorFactory().getValidator()
         );
     }
@@ -113,7 +113,7 @@ class DemoCaseImportServiceTest {
         when(caseRepository.save(any(CaseEntity.class))).thenAnswer((Answer<CaseEntity>) invocation -> {
             CaseEntity entity = invocation.getArgument(0);
             if (entity.getId() == null) {
-                entity.setId(101L);
+                CaseEntityTestSupport.assignId(entity, 101L);
             }
             return entity;
         });
@@ -148,11 +148,7 @@ class DemoCaseImportServiceTest {
     void updatesExistingSeededDemoCaseIdempotently() throws Exception {
         DemoManifest manifest = manifest();
         User admin = adminUser();
-        CaseEntity existingCase = new CaseEntity();
-        existingCase.setId(202L);
-        existingCase.setOrigin(CaseOrigin.SEEDED_DEMO);
-        existingCase.setCreatedBy(admin);
-        existingCase.setCreatedAt(Instant.now());
+        CaseEntity existingCase = CaseEntityTestSupport.newPersistedSeeded(202L, admin, Modality.CT, CaseStatus.COMPLETED);
         when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(admin));
         when(caseRepository.findByDemoCaseSlugAndDemoManifestVersion("demo-ct-lesion-001", "v1")).thenReturn(Optional.of(existingCase));
         when(caseRepository.save(any(CaseEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -233,7 +229,7 @@ class DemoCaseImportServiceTest {
 
     @Test
     void rejectsManifestWhenBeanValidationContractIsViolated() throws Exception {
-        DemoManifest manifest = manifestWithBlankReportText();
+        DemoManifest manifest = manifestWithBlankPatientPseudoId();
         when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(adminUser()));
 
         BadRequestException exception = assertThrows(
@@ -241,14 +237,14 @@ class DemoCaseImportServiceTest {
                 () -> demoCaseImportService.importManifest("admin@demo.local", manifest)
         );
 
-        assertEquals("Demo manifest validation failed: reportText must not be blank", exception.getMessage());
+        assertEquals("Demo manifest validation failed: patientPseudoId must not be blank", exception.getMessage());
         verify(storageService, never()).validateObjectKey(any(String.class));
         verify(caseRepository, never()).save(any(CaseEntity.class));
     }
 
     @Test
     void rejectsManifestWhenReportPayloadDriftsFromDeterministicSeededReport() throws Exception {
-        DemoManifest manifest = manifestWithChangedReportText("Non deterministic text");
+        DemoManifest manifest = manifestWithChangedRecommendation("Non deterministic recommendation");
         when(userRepository.findByEmail("admin@demo.local")).thenReturn(Optional.of(adminUser()));
 
         BadRequestException exception = assertThrows(
@@ -257,7 +253,7 @@ class DemoCaseImportServiceTest {
         );
 
         assertEquals(
-                "Demo manifest report must match deterministic seeded report: reportText mismatch",
+                "Demo manifest report must match deterministic seeded report: reportData.recommendation mismatch",
                 exception.getMessage()
         );
         verify(storageService, never()).validateObjectKey(any(String.class));
@@ -300,8 +296,7 @@ class DemoCaseImportServiceTest {
                 "Synthetic attribution",
                 List.of(original, liverMask, lesionMask, liverMesh, lesionMesh),
                 List.of(new DemoManifestFinding(FindingType.LESION, "Lesion component", null, 12.4, 810.0, null)),
-                expectedSeededReportData(1),
-                expectedSeededReportText(1)
+                expectedSeededReportData(1)
         );
     }
 
@@ -326,8 +321,7 @@ class DemoCaseImportServiceTest {
                 manifest.sourceAttribution(),
                 List.of(original, manifest.artifacts().get(1), manifest.artifacts().get(2), manifest.artifacts().get(3), manifest.artifacts().get(4)),
                 manifest.findings(),
-                manifest.reportData(),
-                manifest.reportText()
+                manifest.reportData()
         );
     }
 
@@ -344,8 +338,7 @@ class DemoCaseImportServiceTest {
                 manifest.sourceAttribution(),
                 List.of(manifest.artifacts().get(0), manifest.artifacts().get(1), manifest.artifacts().get(2), manifest.artifacts().get(4)),
                 manifest.findings(),
-                manifest.reportData(),
-                manifest.reportText()
+                manifest.reportData()
         );
     }
 
@@ -362,13 +355,30 @@ class DemoCaseImportServiceTest {
                 manifest.sourceAttribution(),
                 List.of(manifest.artifacts().get(0), manifest.artifacts().get(1), manifest.artifacts().get(2), manifest.artifacts().get(3)),
                 manifest.findings(),
-                manifest.reportData(),
-                manifest.reportText()
+                manifest.reportData()
         );
     }
 
-    private DemoManifest manifestWithBlankReportText() throws Exception {
+    private DemoManifest manifestWithBlankPatientPseudoId() throws Exception {
         DemoManifest manifest = manifest();
+        return new DemoManifest(
+                manifest.schemaVersion(),
+                manifest.caseSlug(),
+                manifest.origin(),
+                manifest.modality(),
+                manifest.category(),
+                " ",
+                manifest.sourceDataset(),
+                manifest.sourceAttribution(),
+                manifest.artifacts(),
+                manifest.findings(),
+                manifest.reportData()
+        );
+    }
+
+    private DemoManifest manifestWithChangedRecommendation(String recommendation) throws Exception {
+        DemoManifest manifest = manifest();
+        DemoManifestReportData reportData = manifest.reportData();
         return new DemoManifest(
                 manifest.schemaVersion(),
                 manifest.caseSlug(),
@@ -380,26 +390,12 @@ class DemoCaseImportServiceTest {
                 manifest.sourceAttribution(),
                 manifest.artifacts(),
                 manifest.findings(),
-                manifest.reportData(),
-                " "
-        );
-    }
-
-    private DemoManifest manifestWithChangedReportText(String reportText) throws Exception {
-        DemoManifest manifest = manifest();
-        return new DemoManifest(
-                manifest.schemaVersion(),
-                manifest.caseSlug(),
-                manifest.origin(),
-                manifest.modality(),
-                manifest.category(),
-                manifest.patientPseudoId(),
-                manifest.sourceDataset(),
-                manifest.sourceAttribution(),
-                manifest.artifacts(),
-                manifest.findings(),
-                manifest.reportData(),
-                reportText
+                new DemoManifestReportData(
+                        reportData.findings(),
+                        reportData.impression(),
+                        reportData.limitations(),
+                        recommendation
+                )
         );
     }
 

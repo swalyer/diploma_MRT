@@ -104,7 +104,7 @@ export function CreateCasePage() {
           <TextField label="Patient pseudo ID" value={patientPseudoId} onChange={(e) => setPatientPseudoId(e.target.value)} inputProps={{ 'data-testid': 'create-case-pseudo-id' }} />
           <TextField select label="Declared modality" value={modality} onChange={(e) => setModality(e.target.value)} SelectProps={{ inputProps: { 'data-testid': 'create-case-modality' } }}>
             <MenuItem value="CT">CT (primary path)</MenuItem>
-            <MenuItem value="MRI">MRI (heuristic-supported)</MenuItem>
+            <MenuItem value="MRI">MRI (honest-ready heuristic path)</MenuItem>
           </TextField>
 
           <Box onDrop={onDrop} onDragOver={(e) => e.preventDefault()} sx={{ p: 3, border: '2px dashed #aac1ec', borderRadius: 2, background: '#f8fbff' }}>
@@ -126,7 +126,7 @@ export function CreateCasePage() {
         <Typography variant="h6">Upload guidance</Typography>
         <Stack spacing={1} mt={1}>
           <Typography variant="body2">• NIfTI should be volumetric 3D study.</Typography>
-          <Typography variant="body2">• MRI lesion support is available via heuristic fallback when dedicated weights are absent.</Typography>
+          <Typography variant="body2">• MRI suspicious-zone support is honest-ready via heuristic fallback when dedicated weights are absent.</Typography>
           <Typography variant="body2">• After upload, pipeline run is manual from case page.</Typography>
         </Stack>
       </CardContent></Card>

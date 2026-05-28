@@ -52,7 +52,7 @@ Implementation should be done in this order:
 At the moment:
 
 1. `CT` is closest to ready and already has a usable end-to-end path.
-2. `MRI` is not ready as a full model-backed path; lesion handling is still heuristic.
+2. `MRI` target is explicitly `Option A. honest-ready`; suspicious-zone handling remains heuristic-supported by design.
 3. Structured report generation exists, including recommendation text.
 4. 3D viewer exists and can show liver and lesion meshes when artifacts are present.
 5. The domain still contains architectural debt:
@@ -426,9 +426,13 @@ Implemented so far:
 10. seeded read-model cleanup slice:
    importer no longer creates synthetic seeded `InferenceRun` rows, list/status mapping ignores
    legacy seeded compatibility runs, and a follow-up migration retires those rows from persistence.
+11. `Phase 6` MRI scope slice:
+   the repository now explicitly targets `Option A. MRI Honest-Ready`; seeded MRI demo cases,
+   heuristic-safe report language, and MRI-focused viewer/admin smoke coverage were added so MRI
+   can be demonstrated without implying model-backed lesion detection.
 
 Still next:
 
 1. harden remaining importer/report/test matrix coverage
 2. close remaining admin/demo UX and documentation gaps
-3. decide whether Phase 5 MRI seeded cases are honest-ready or should stay deferred
+3. continue hardening MRI/live verification beyond the honest-ready baseline if dedicated weights become available

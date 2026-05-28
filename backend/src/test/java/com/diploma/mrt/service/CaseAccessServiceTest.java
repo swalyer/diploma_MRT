@@ -10,6 +10,7 @@ import com.diploma.mrt.exception.AccessDeniedException;
 import com.diploma.mrt.repository.CaseRepository;
 import com.diploma.mrt.repository.UserRepository;
 import com.diploma.mrt.service.impl.CaseAccessService;
+import com.diploma.mrt.testsupport.CaseEntityTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -63,16 +64,10 @@ class CaseAccessServiceTest {
     }
 
     private CaseEntity caseEntity(Long id, String ownerEmail, Role ownerRole, CaseOrigin origin) {
-        CaseEntity caseEntity = new CaseEntity();
-        caseEntity.setId(id);
-        caseEntity.setPatientPseudoId("P-" + id);
-        caseEntity.setModality(Modality.CT);
-        caseEntity.setStatus(CaseStatus.COMPLETED);
-        caseEntity.setOrigin(origin);
-        caseEntity.setCreatedBy(user(ownerEmail, ownerRole));
-        caseEntity.setCreatedAt(Instant.now());
-        caseEntity.setUpdatedAt(Instant.now());
-        return caseEntity;
+        return CaseEntityTestSupport.withOrigin(
+                CaseEntityTestSupport.newPersistedLive(id, user(ownerEmail, ownerRole), Modality.CT, CaseStatus.COMPLETED),
+                origin
+        );
     }
 
     private User user(String email, Role role) {

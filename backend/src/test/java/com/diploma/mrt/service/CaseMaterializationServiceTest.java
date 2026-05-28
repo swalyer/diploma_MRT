@@ -13,6 +13,7 @@ import com.diploma.mrt.model.ReportData;
 import com.diploma.mrt.model.ReportSections;
 import com.diploma.mrt.service.impl.CaseMaterializationService;
 import com.diploma.mrt.service.materialization.CaseMaterialization;
+import com.diploma.mrt.testsupport.CaseEntityTestSupport;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,7 +38,7 @@ class CaseMaterializationServiceTest {
         com.diploma.mrt.repository.FindingRepository findingRepository = mock(com.diploma.mrt.repository.FindingRepository.class);
         com.diploma.mrt.repository.ReportRepository reportRepository = mock(com.diploma.mrt.repository.ReportRepository.class);
         StorageService storageService = mock(StorageService.class);
-        CaseMaterializationService service = new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService);
+        CaseMaterializationService service = new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService, new com.diploma.mrt.transaction.AfterCommitExecutor());
 
         Artifact input = artifact(ArtifactType.ORIGINAL_STUDY, "cases/11/input.nii.gz", ArtifactStorageDisposition.MANAGED);
         Artifact oldLiverMesh = artifact(ArtifactType.LIVER_MESH, "cases/11/old-liver.glb", ArtifactStorageDisposition.MANAGED);
@@ -85,7 +86,7 @@ class CaseMaterializationServiceTest {
         com.diploma.mrt.repository.FindingRepository findingRepository = mock(com.diploma.mrt.repository.FindingRepository.class);
         com.diploma.mrt.repository.ReportRepository reportRepository = mock(com.diploma.mrt.repository.ReportRepository.class);
         StorageService storageService = mock(StorageService.class);
-        CaseMaterializationService service = new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService);
+        CaseMaterializationService service = new CaseMaterializationService(artifactRepository, findingRepository, reportRepository, storageService, new com.diploma.mrt.transaction.AfterCommitExecutor());
 
         Artifact oldManagedInput = artifact(ArtifactType.ORIGINAL_STUDY, "cases/12/input.nii.gz", ArtifactStorageDisposition.MANAGED);
         Artifact oldReferencedMask = artifact(ArtifactType.LIVER_MASK, "demo/12/liver-mask.nii.gz", ArtifactStorageDisposition.REFERENCED);
@@ -135,16 +136,7 @@ class CaseMaterializationServiceTest {
         User user = new User();
         user.setId(77L);
         user.setEmail("doctor@demo.local");
-
-        CaseEntity caseEntity = new CaseEntity();
-        caseEntity.setId(id);
-        caseEntity.setPatientPseudoId("P-" + id);
-        caseEntity.setModality(Modality.CT);
-        caseEntity.setStatus(CaseStatus.COMPLETED);
-        caseEntity.setCreatedBy(user);
-        caseEntity.setCreatedAt(Instant.now());
-        caseEntity.setUpdatedAt(Instant.now());
-        return caseEntity;
+        return CaseEntityTestSupport.newPersistedLive(id, user, Modality.CT, CaseStatus.COMPLETED);
     }
 
     private ReportData reportData() {

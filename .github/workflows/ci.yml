@@ -51,6 +51,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Verify frontend contract snapshot
+        run: npm run contract:check
+
       - name: Build frontend
         run: npm run build
 

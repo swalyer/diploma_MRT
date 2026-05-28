@@ -9,9 +9,8 @@ import com.diploma.mrt.repository.FindingRepository;
 import com.diploma.mrt.repository.ReportRepository;
 import com.diploma.mrt.service.StorageService;
 import com.diploma.mrt.service.materialization.CaseMaterialization;
+import com.diploma.mrt.transaction.AfterCommitExecutor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -24,17 +23,20 @@ public class CaseMaterializationService {
     private final FindingRepository findingRepository;
     private final ReportRepository reportRepository;
     private final StorageService storageService;
+    private final AfterCommitExecutor afterCommitExecutor;
 
     public CaseMaterializationService(
             ArtifactRepository artifactRepository,
             FindingRepository findingRepository,
             ReportRepository reportRepository,
-            StorageService storageService
+            StorageService storageService,
+            AfterCommitExecutor afterCommitExecutor
     ) {
         this.artifactRepository = artifactRepository;
         this.findingRepository = findingRepository;
         this.reportRepository = reportRepository;
         this.storageService = storageService;
+        this.afterCommitExecutor = afterCommitExecutor;
     }
 
     public void replace(CaseEntity caseEntity, CaseMaterialization materialization) {
@@ -112,18 +114,7 @@ public class CaseMaterializationService {
         if (staleManagedObjectKeys.isEmpty()) {
             return;
         }
-
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            staleManagedObjectKeys.forEach(storageService::delete);
-            return;
-        }
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                staleManagedObjectKeys.forEach(storageService::delete);
-            }
-        });
+        afterCommitExecutor.runAfterCommit(() -> staleManagedObjectKeys.forEach(storageService::delete));
     }
 
     private boolean isManagedArtifact(Artifact artifact) {

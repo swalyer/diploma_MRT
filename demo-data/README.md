@@ -1,9 +1,12 @@
-Seeded CT demo pack lives here.
+Seeded CT and MRI demo packs live here.
 
 - `manifests/` contains typed demo manifest JSON files for admin import.
 - `scripts/build_seeded_ct_demo_pack.py` regenerates manifests and lightweight
   demo artifacts from the tiny repository CT smoke fixture already committed in
   `storage/cases/1`.
+- `scripts/build_seeded_mri_demo_pack.py` regenerates honest-ready MRI manifests
+  and lightweight demo artifacts from the tiny repository MRI smoke fixture in
+  `storage/cases/3`.
 - `scripts/smoke_seeded_case_api.py` imports a committed manifest into a live
   local stack and verifies seeded read/status/report/findings/viewer/download
   semantics end to end.

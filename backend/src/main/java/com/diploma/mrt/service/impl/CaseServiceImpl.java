@@ -24,12 +24,11 @@ import com.diploma.mrt.repository.ReportRepository;
 import com.diploma.mrt.service.AuditService;
 import com.diploma.mrt.service.CaseService;
 import com.diploma.mrt.service.StorageService;
+import com.diploma.mrt.config.AppProperties;
+import com.diploma.mrt.transaction.AfterCommitExecutor;
 import com.diploma.mrt.util.EmailNormalizer;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
@@ -49,6 +48,7 @@ public class CaseServiceImpl implements CaseService {
     private final CaseProcessingService caseProcessingService;
     private final CaseAccessService caseAccessService;
     private final CaseFileService caseFileService;
+    private final AfterCommitExecutor afterCommitExecutor;
     private final ExecutionMode defaultExecutionMode;
 
     public CaseServiceImpl(
@@ -62,7 +62,8 @@ public class CaseServiceImpl implements CaseService {
             CaseProcessingService caseProcessingService,
             CaseAccessService caseAccessService,
             CaseFileService caseFileService,
-            @Value("${app.ml-mode:mock}") String executionMode
+            AfterCommitExecutor afterCommitExecutor,
+            AppProperties appProperties
     ) {
         this.caseRepository = caseRepository;
         this.artifactRepository = artifactRepository;
@@ -74,7 +75,8 @@ public class CaseServiceImpl implements CaseService {
         this.caseProcessingService = caseProcessingService;
         this.caseAccessService = caseAccessService;
         this.caseFileService = caseFileService;
-        this.defaultExecutionMode = ExecutionMode.from(executionMode);
+        this.afterCommitExecutor = afterCommitExecutor;
+        this.defaultExecutionMode = appProperties.ml().mode();
     }
 
     @Override
@@ -117,7 +119,7 @@ public class CaseServiceImpl implements CaseService {
         String objectKey = storageService.saveCaseFile(id, file);
         caseFileService.registerDeleteOnRollback(objectKey);
         existingArtifacts.forEach(artifactRepository::delete);
-        caseFileService.registerDeleteAfterCommit(existingArtifacts.stream().map(Artifact::getObjectKey).toList());
+        caseFileService.registerDeleteAfterCommit(managedObjectKeys(existingArtifacts));
 
         caseEntity.markUploaded(Instant.now());
 
@@ -156,7 +158,7 @@ public class CaseServiceImpl implements CaseService {
         reportRepository.deleteByCaseEntityId(id);
         inferenceRunRepository.deleteByCaseEntityId(id);
         caseRepository.delete(caseEntity);
-        caseFileService.registerDeleteAfterCommit(artifacts.stream().map(Artifact::getObjectKey).toList());
+        caseFileService.registerDeleteAfterCommit(managedObjectKeys(artifacts));
     }
 
     @Override
@@ -218,17 +220,15 @@ public class CaseServiceImpl implements CaseService {
                 .orElseThrow(() -> new BadRequestException("Input file is required before processing"));
     }
 
+    private List<String> managedObjectKeys(List<Artifact> artifacts) {
+        return artifacts.stream()
+                .filter(Artifact::isManaged)
+                .map(Artifact::getObjectKey)
+                .toList();
+    }
+
     private void triggerProcessingAfterCommit(Long caseId, ExecutionMode requestedExecutionMode) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            caseProcessingService.processAsync(caseId, requestedExecutionMode);
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                caseProcessingService.processAsync(caseId, requestedExecutionMode);
-            }
-        });
+        afterCommitExecutor.runAfterCommit(() -> caseProcessingService.processAsync(caseId, requestedExecutionMode));
     }
 
     private CaseDtos.CaseResponse map(CaseEntity caseEntity, InferenceRun latestRun) {

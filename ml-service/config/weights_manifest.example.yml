@@ -1,0 +1,43 @@
+# Production weights manifest.
+#
+# Each entry describes a model weight bundle that should be present at runtime.
+# `WeightsManager` resolves entries by `key`, downloads from `url` on demand
+# (or expects a pre-mounted file at `local_path`), and verifies SHA256 before
+# anything is wired into a pipeline adapter. Mismatched checksums fail loud.
+#
+# Copy to `weights_manifest.yml`, fill in URLs/sha256, point adapters at it.
+
+models:
+  nnunet_atlas_mri_lesion:
+    name: "nnU-Net v2 — ATLAS MRI lesion"
+    version: "0.1.0"
+    purpose: lesion_segmentation
+    modality: MRI
+    framework: nnunetv2
+    dataset_id: 501
+    dataset_name: Dataset501_AtlasMRILesion
+    # The "trained-bundle" produced by `nnUNetv2_export_model_to_zip` — the
+    # adapter unpacks it into the nnUNet results folder.
+    archive: nnunet_atlas_mri_lesion_v0.1.0.zip
+    url: "https://example.invalid/weights/nnunet_atlas_mri_lesion_v0.1.0.zip"
+    sha256: "REPLACE_WITH_REAL_SHA256_AFTER_TRAINING"
+    expected_metrics:
+      dice_mean: 0.62      # placeholder — overwrite from actual eval report
+      sensitivity_mean: 0.78
+      fp_mean: 1.5
+    notes: |
+      Train: ATLAS train split (~90 cases), 5-fold CV.
+      Test: ATLAS hidden test as scored by the challenge portal.
+
+  medsam_vit_b:
+    name: "MedSAM ViT-B"
+    version: "1.0.0"
+    purpose: lesion_refinement
+    modality: ANY
+    framework: torch
+    archive: medsam_vit_b.pth
+    url: "https://huggingface.co/wanglab/medsam-vit-base/resolve/main/medsam_vit_b.pth"
+    sha256: "REPLACE_WITH_REAL_SHA256_BEFORE_USE"
+    notes: |
+      Public MedSAM checkpoint, MIT license.
+      Used by MedSamAdapter for promptable refinement of bbox candidates.

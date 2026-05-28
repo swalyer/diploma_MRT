@@ -165,7 +165,7 @@ export function CasesPage() {
                   <Typography variant="body2" color="text.secondary">Pseudo ID: {c.patientPseudoId}</Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Chip size="small" color={c.status === 'COMPLETED' ? 'success' : c.status === 'FAILED' ? 'error' : 'default'} label={c.status} />
-                    <Chip size="small" variant="outlined" label={c.modality === 'MRI' ? 'MRI heuristic-supported' : 'CT primary'} />
+                    <Chip size="small" variant="outlined" label={c.modality === 'MRI' ? 'MRI honest-ready · heuristic-supported' : 'CT primary'} />
                     {c.origin === 'SEEDED_DEMO' && (
                       <Chip size="small" color="secondary" label={c.demoCategory ? `Seeded demo · ${c.demoCategory}` : 'Seeded demo'} />
                     )}

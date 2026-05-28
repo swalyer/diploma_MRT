@@ -11,16 +11,16 @@ import com.diploma.mrt.entity.InferenceRun;
 import com.diploma.mrt.entity.InferenceStatus;
 import com.diploma.mrt.exception.BadRequestException;
 import com.diploma.mrt.exception.NotFoundException;
+import com.diploma.mrt.integration.ml.MlInferenceRequest;
 import com.diploma.mrt.integration.ml.MlInferenceResult;
-import com.diploma.mrt.integration.ml.contract.MlContractInferenceRequest;
-import com.diploma.mrt.integration.ml.mapper.MlContractRequestMapper;
-import com.diploma.mrt.integration.ml.mapper.MlContractResponseMapper;
 import com.diploma.mrt.model.ProcessDetails;
 import com.diploma.mrt.repository.ArtifactRepository;
 import com.diploma.mrt.repository.CaseRepository;
 import com.diploma.mrt.repository.InferenceRunRepository;
 import com.diploma.mrt.service.AuditService;
 import com.diploma.mrt.service.materialization.CaseMaterialization;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -35,6 +35,8 @@ import java.util.List;
 
 @Service
 public class CaseProcessingService {
+    private static final Logger log = LoggerFactory.getLogger(CaseProcessingService.class);
+
     private final CaseRepository caseRepository;
     private final ArtifactRepository artifactRepository;
     private final InferenceRunRepository inferenceRunRepository;
@@ -42,8 +44,6 @@ public class CaseProcessingService {
     private final AuditService auditService;
     private final TransactionTemplate transactionTemplate;
     private final boolean processingRecoveryEnabled;
-    private final MlContractRequestMapper mlContractRequestMapper;
-    private final MlContractResponseMapper mlContractResponseMapper;
     private final CaseMaterializationService caseMaterializationService;
 
     public CaseProcessingService(
@@ -53,8 +53,6 @@ public class CaseProcessingService {
             MlClient mlClient,
             AuditService auditService,
             PlatformTransactionManager transactionManager,
-            MlContractRequestMapper mlContractRequestMapper,
-            MlContractResponseMapper mlContractResponseMapper,
             CaseMaterializationService caseMaterializationService,
             @Value("${app.processing-recovery-enabled:true}") boolean processingRecoveryEnabled
     ) {
@@ -65,8 +63,6 @@ public class CaseProcessingService {
         this.auditService = auditService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.processingRecoveryEnabled = processingRecoveryEnabled;
-        this.mlContractRequestMapper = mlContractRequestMapper;
-        this.mlContractResponseMapper = mlContractResponseMapper;
         this.caseMaterializationService = caseMaterializationService;
     }
 
@@ -78,8 +74,8 @@ public class CaseProcessingService {
         for (CaseEntity caseEntity : caseRepository.findByStatus(CaseStatus.PROCESSING)) {
             try {
                 transactionTemplate.executeWithoutResult(status -> recoverInterruptedCase(caseEntity.getId()));
-            } catch (Exception ignored) {
-                // Recovery is best-effort and should not break application startup.
+            } catch (Exception exception) {
+                log.warn("Recovery skipped for caseId={}: {}", caseEntity.getId(), exception.toString());
             }
         }
     }
@@ -99,14 +95,14 @@ public class CaseProcessingService {
 
         try {
             auditService.log(context.userId(), id, AuditAction.INFERENCE_REQUEST_SENT, ProcessDetails.stage("ml_request_sent"));
-            MlContractInferenceRequest request = mlContractRequestMapper.toContract(
+            MlInferenceRequest request = MlInferenceRequest.of(
                     context.caseId(),
                     context.runId(),
                     context.modality(),
                     context.originalObjectKey(),
                     context.executionMode()
             );
-            MlInferenceResult result = mlContractResponseMapper.toDomain(mlClient.infer(request));
+            MlInferenceResult result = mlClient.infer(request).toResult();
             if (result.status() != InferenceStatus.COMPLETED) {
                 ProcessDetails failureDetails = buildFailureDetails(result);
                 transactionTemplate.executeWithoutResult(status -> markRunFailed(context, failureDetails));
@@ -188,8 +184,8 @@ public class CaseProcessingService {
                 caseRepository.save(caseEntity);
                 auditService.log(caseEntity.getCreatedBy().getId(), caseId, AuditAction.INFERENCE_FAILED, failureDetails);
             });
-        } catch (Exception ignored) {
-            // No persistent recovery path remains if the case itself cannot be loaded.
+        } catch (Exception persistFailure) {
+            log.warn("Failed to persist failure state for caseId={}: {}", caseId, persistFailure.toString());
         }
     }
 
