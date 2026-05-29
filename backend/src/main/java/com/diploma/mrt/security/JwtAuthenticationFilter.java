@@ -28,9 +28,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ") && SecurityContextHolder.getContext().getAuthentication() == null) {
-            String token = header.substring(7);
+        String token = resolveToken(request);
+        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 Claims claims = jwtService.parseClaims(token);
                 String subject = EmailNormalizer.normalize(claims.getSubject());
@@ -45,5 +44,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Bearer header is the primary source. The {@code access_token} query
+     * parameter is a fallback for the SSE stream endpoint, since the browser
+     * EventSource API cannot attach Authorization headers.
+     */
+    private String resolveToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        String queryToken = request.getParameter("access_token");
+        if (queryToken != null && !queryToken.isBlank() && request.getRequestURI().endsWith("/events")) {
+            return queryToken;
+        }
+        return null;
     }
 }

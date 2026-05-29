@@ -17,7 +17,8 @@ import {
 } from '@mui/material'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import { api, downloadWithAuth } from '../api/client'
+import { api, downloadWithAuth, resolveApiUrl } from '../api/client'
+import { useAuthStore } from '../store/authStore'
 import { Medical2DViewer } from '../components/Medical2DViewer'
 import { Viewer3D } from '../components/Viewer3D'
 import { FindingsPanel } from '../components/FindingsPanel'
@@ -133,9 +134,29 @@ export function CaseDetailsPage() {
 
     const timeoutId = window.setTimeout(() => {
       refresh({ silent: true }).catch(() => undefined)
-    }, 2000)
+    }, 4000)
 
     return () => window.clearTimeout(timeoutId)
+  }, [id, caseSummary?.origin, status?.status, status?.inferenceStatus])
+
+  // Live pipeline progress via SSE: refresh immediately on each backend stage
+  // event. The slower poll above stays as a resilience fallback if the stream
+  // drops (EventSource also auto-reconnects).
+  useEffect(() => {
+    if (!id) return
+    const live = caseSummary?.origin !== 'SEEDED_DEMO' && (status?.status === 'PROCESSING' || status?.inferenceStatus === 'STARTED')
+    if (!live) return
+
+    const token = useAuthStore.getState().token
+    const url = resolveApiUrl(`/api/cases/${id}/events`) + (token ? `?access_token=${encodeURIComponent(token)}` : '')
+    const source = new EventSource(url)
+    const onStage = () => { refresh({ silent: true }).catch(() => undefined) }
+    source.addEventListener('stage', onStage)
+
+    return () => {
+      source.removeEventListener('stage', onStage)
+      source.close()
+    }
   }, [id, caseSummary?.origin, status?.status, status?.inferenceStatus])
 
   useEffect(() => {

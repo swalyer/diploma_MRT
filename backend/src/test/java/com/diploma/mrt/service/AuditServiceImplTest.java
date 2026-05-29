@@ -29,7 +29,7 @@ class AuditServiceImplTest {
                 .when(jdbcTemplate)
                 .update(anyString(), eq(1L), eq(2L), eq("CASE_CREATED"), anyString(), any());
 
-        AuditServiceImpl auditService = new AuditServiceImpl(provider, true);
+        AuditServiceImpl auditService = new AuditServiceImpl(provider, new com.diploma.mrt.events.CaseEventPublisher(), true);
 
         assertDoesNotThrow(() -> auditService.log(1L, 2L, AuditAction.CASE_CREATED, ProcessDetails.empty()));
     }
@@ -43,7 +43,7 @@ class AuditServiceImplTest {
                 .when(jdbcTemplate)
                 .query(anyString(), any(org.springframework.jdbc.core.RowMapper.class), eq(7L));
 
-        AuditServiceImpl auditService = new AuditServiceImpl(provider, true);
+        AuditServiceImpl auditService = new AuditServiceImpl(provider, new com.diploma.mrt.events.CaseEventPublisher(), true);
 
         assertEquals(List.of(), auditService.listByCase(7L));
     }
