@@ -372,6 +372,15 @@ export function CaseDetailsPage() {
             <Alert severity="warning">Decision-support only. Not for standalone diagnosis.</Alert>
             <Stack direction="row" spacing={1}>
               <Button size="small" variant="outlined" onClick={() => navigator.clipboard.writeText(report || '')} disabled={!report}>Copy report</Button>
+              <Button
+                size="small"
+                variant="contained"
+                data-testid="download-report-pdf"
+                onClick={() => downloadWithAuth(`/api/cases/${id}/report.pdf`, `case-${id}-report.pdf`)}
+                disabled={!status?.resultReady}
+              >
+                Download PDF
+              </Button>
             </Stack>
             {reportData?.sections ? (
               <Stack spacing={1}>
