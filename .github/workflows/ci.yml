@@ -73,6 +73,12 @@ jobs:
       - name: Run ml-service tests
         run: docker compose run --rm --no-deps ml-service-test pytest -q
 
+      - name: Lint weights manifest template
+        run: docker compose run --rm --no-deps ml-service-test python -m scripts.check_weights_manifest --path config/weights_manifest.example.yml --expect-placeholders
+
+      - name: Verify real weights manifest has no placeholders
+        run: docker compose run --rm --no-deps ml-service-test python -m scripts.check_weights_manifest
+
   browser-e2e:
     name: Browser E2E
     runs-on: ubuntu-latest
