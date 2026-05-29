@@ -29,8 +29,9 @@ logging:
 app:
   jwt-secret: ${APP_JWT_SECRET}
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost}
-  ml-url: ${APP_ML_URL:http://localhost:8000}
-  ml-mode: ${APP_ML_MODE:mock}
+  ml:
+    url: ${APP_ML_URL:http://localhost:8000}
+    mode: ${APP_ML_MODE:mock}
   processing-recovery-enabled: ${APP_PROCESSING_RECOVERY_ENABLED:true}
   demo-users-enabled: ${APP_DEMO_USERS_ENABLED:false}
   storage-root: ${APP_STORAGE_ROOT:./storage}

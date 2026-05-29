@@ -14,6 +14,9 @@ frontend/e2e/.playwright-browsers/
 frontend/e2e/test-results/
 frontend/e2e/theme-preview-*.png
 frontend/e2e/case-preview-*.png
+frontend/e2e/adhoc-*.png
+frontend/e2e/live-*.png
+docs/qa/live-test-report.html
 backend/cp.txt
 backend/*-preview.pdf
 AGENTS.md
