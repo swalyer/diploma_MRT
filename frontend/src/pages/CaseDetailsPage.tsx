@@ -20,6 +20,7 @@ import { useParams } from 'react-router-dom'
 import { api, downloadWithAuth } from '../api/client'
 import { Medical2DViewer } from '../components/Medical2DViewer'
 import { Viewer3D } from '../components/Viewer3D'
+import { FindingsPanel } from '../components/FindingsPanel'
 import { ARTIFACT_TYPES, AUDIT_ACTIONS, FINDING_TYPES, type ArtifactItem, type CaseItem, type FindingItem, type ProcessDetails, type ReportData, type StatusPayload, type Viewer3DPayload } from '../types'
 
 type PageState = 'loading' | 'error' | 'success' | 'success-degraded'
@@ -285,6 +286,7 @@ export function CaseDetailsPage() {
       </Tabs>
 
       {tab === 0 && (
+        <Stack spacing={2}>
         <Grid2 container spacing={2}>
           <Grid2 size={{ xs: 12, lg: 7 }}>
             <Card sx={{ height: '100%' }}><CardContent>
@@ -346,6 +348,18 @@ export function CaseDetailsPage() {
             </CardContent></Card>
           </Grid2>
         </Grid2>
+        <Card><CardContent>
+          <Typography variant="h6">Findings</Typography>
+          <Divider sx={{ my: 1.5 }} />
+          <FindingsPanel
+            findings={findings}
+            selectedFindingId={selectedFindingId}
+            onSelect={setSelectedFindingId}
+            onLocate={(fid) => { setSelectedFindingId(fid); setTab(1) }}
+            emptyMessage={inferenceFailed ? 'No findings because inference failed.' : 'No findings detected for this case.'}
+          />
+        </CardContent></Card>
+        </Stack>
       )}
 
       {tab === 1 && (
@@ -382,21 +396,13 @@ export function CaseDetailsPage() {
             )}
             <Divider />
             <Typography variant="subtitle2">Structured findings</Typography>
-            {!findings.length ? <Alert severity="info">{inferenceFailed ? 'No findings because inference failed.' : 'No structured findings returned.'}</Alert> : findings.map((f) => (
-              <Stack key={f.id} direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }}>
-                <Typography variant="body2" sx={{ flex: 1 }}>{f.label} · volume {f.volumeMm3 ?? 'N/A'} mm³ · confidence {f.confidence ?? 'N/A'}</Typography>
-                <Button
-                  size="small"
-                  variant={selectedFindingId === f.id ? 'contained' : 'outlined'}
-                  onClick={() => {
-                    setSelectedFindingId(f.id)
-                    setTab(1)
-                  }}
-                >
-                  Jump to slice
-                </Button>
-              </Stack>
-            ))}
+            <FindingsPanel
+              findings={findings}
+              selectedFindingId={selectedFindingId}
+              onSelect={setSelectedFindingId}
+              onLocate={(fid) => { setSelectedFindingId(fid); setTab(1) }}
+              emptyMessage={inferenceFailed ? 'No findings because inference failed.' : 'No structured findings returned.'}
+            />
           </Stack>
         </CardContent></Card>
       )}
