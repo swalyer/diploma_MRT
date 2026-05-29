@@ -132,7 +132,7 @@ export function Viewer3D({
     {liverMesh.error && <Alert severity="error">Failed to load liver mesh: {liverMesh.error}</Alert>}
     {lesionMesh.error && <Alert severity="warning">Failed to load lesion mesh: {lesionMesh.error}</Alert>}
 
-    <Box data-testid="viewer-3d-canvas" sx={{ height: 500, borderRadius: 2, overflow: 'hidden', border: '1px solid #d4dce8' }}>
+    <Box data-testid="viewer-3d-canvas" sx={{ height: 500, borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
       <Canvas key={canvasKey} camera={{ position: [150, 120, 150], fov: 40 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[1, 1, 1]} intensity={1} />

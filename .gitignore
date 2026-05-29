@@ -12,6 +12,7 @@
 frontend/.npm-cache/
 frontend/e2e/.playwright-browsers/
 frontend/e2e/test-results/
+frontend/e2e/theme-preview-*.png
 AGENTS.md
 
 # Runtime case artifacts (regenerated per run; committed demo packs live in storage/demo/)

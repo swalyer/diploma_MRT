@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import {
   AppBar,
   Avatar,
@@ -9,11 +9,12 @@ import {
   Chip,
   Container,
   CssBaseline,
+  IconButton,
   Stack,
   ThemeProvider,
   Toolbar,
-  Typography,
-  createTheme
+  Tooltip,
+  Typography
 } from '@mui/material'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { LoginPage } from '../pages/LoginPage'
@@ -22,23 +23,32 @@ import { CreateCasePage } from '../pages/CreateCasePage'
 import { CaseDetailsPage } from '../pages/CaseDetailsPage'
 import { AdminPage } from '../pages/AdminPage'
 import { useAuthStore } from '../store/authStore'
+import { useThemeStore } from '../store/themeStore'
+import { createAppTheme } from './theme'
 
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: { main: '#2358ff' },
-    secondary: { main: '#1f9f8a' },
-    background: { default: '#eef3fb', paper: '#ffffff' },
-    warning: { main: '#e8861f' },
-    success: { main: '#1d9c5b' }
-  },
-  shape: { borderRadius: 14 },
-  typography: {
-    fontFamily: 'Inter, system-ui, sans-serif',
-    h4: { fontSize: '1.75rem', fontWeight: 750 },
-    h5: { fontSize: '1.3rem', fontWeight: 700 }
-  }
-})
+function ThemeToggle() {
+  const mode = useThemeStore((s) => s.mode)
+  const toggleMode = useThemeStore((s) => s.toggleMode)
+  const isDark = mode === 'dark'
+  return (
+    <Tooltip title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}>
+      <IconButton onClick={toggleMode} color="inherit" aria-label="toggle color theme" size="small">
+        {isDark ? (
+          // Sun
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </svg>
+        ) : (
+          // Moon
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+          </svg>
+        )}
+      </IconButton>
+    </Tooltip>
+  )
+}
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const token = useAuthStore((s) => s.token)
@@ -71,7 +81,7 @@ function TopNav() {
   ]
 
   return (
-    <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: '1px solid #dce4f2' }}>
+    <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
       <Toolbar sx={{ minHeight: 78 }}>
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexGrow: 1 }}>
           <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontWeight: 800, cursor: 'pointer' }} onClick={() => navigate('/cases')}>LI</Avatar>
@@ -81,25 +91,24 @@ function TopNav() {
           </Stack>
         </Stack>
 
-        {token && (
-          <Stack direction="row" spacing={1} alignItems="center">
-            {navItems.map((item) => (
-              <Button
-                key={item.path}
-                variant={location.pathname.startsWith(item.path) ? 'contained' : 'text'}
-                onClick={() => navigate(item.path)}
-              >
-                {item.label}
-              </Button>
-            ))}
-            <Chip size="small" color="primary" label={role === 'ROLE_ADMIN' ? 'Admin' : 'Doctor'} />
-            <Button variant="outlined" onClick={() => { clearToken(); navigate('/login') }}>Logout</Button>
-          </Stack>
-        )}
+        <Stack direction="row" spacing={1} alignItems="center">
+          {token && navItems.map((item) => (
+            <Button
+              key={item.path}
+              variant={location.pathname.startsWith(item.path) ? 'contained' : 'text'}
+              onClick={() => navigate(item.path)}
+            >
+              {item.label}
+            </Button>
+          ))}
+          {token && <Chip size="small" color="primary" label={role === 'ROLE_ADMIN' ? 'Admin' : 'Doctor'} />}
+          <ThemeToggle />
+          {token && <Button variant="outlined" onClick={() => { clearToken(); navigate('/login') }}>Logout</Button>}
+        </Stack>
       </Toolbar>
       {token && (
         <Container maxWidth="xl" sx={{ pb: 1.2 }}>
-          <Card sx={{ px: 1.5, py: 0.8, bgcolor: '#f8fbff' }}>
+          <Card sx={{ px: 1.5, py: 0.8, bgcolor: 'action.hover' }}>
             <Breadcrumbs separator="›" aria-label="breadcrumb">
               <Typography sx={{ cursor: 'pointer' }} onClick={() => navigate('/cases')}>home</Typography>
               {crumbs.map((c, idx) => <Typography key={`${c}-${idx}`} color="text.secondary">{c}</Typography>)}
@@ -113,6 +122,8 @@ function TopNav() {
 
 export function App() {
   const navigate = useNavigate()
+  const mode = useThemeStore((s) => s.mode)
+  const theme = useMemo(() => createAppTheme(mode), [mode])
 
   useEffect(() => {
     const onExpired = () => navigate('/login')

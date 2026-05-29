@@ -233,7 +233,7 @@ export function Medical2DViewer({
           component="canvas"
           ref={canvasRef}
           data-testid="viewer-2d-canvas"
-          sx={{ width: '100%', borderRadius: 2, border: '1px solid #d4dce8', imageRendering: 'pixelated', bgcolor: '#0f172a' }}
+          sx={{ width: '100%', borderRadius: 2, border: '1px solid', borderColor: 'divider', imageRendering: 'pixelated', bgcolor: '#0f172a' }}
         />
       </Grid2>
       <Grid2 size={{ xs: 12, lg: 4 }}>
