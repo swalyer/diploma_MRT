@@ -15,7 +15,7 @@ import {
   Tabs,
   Typography
 } from '@mui/material'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { api, downloadWithAuth } from '../api/client'
 import { Medical2DViewer } from '../components/Medical2DViewer'
@@ -23,6 +23,39 @@ import { Viewer3D } from '../components/Viewer3D'
 import { ARTIFACT_TYPES, AUDIT_ACTIONS, FINDING_TYPES, type ArtifactItem, type CaseItem, type FindingItem, type ProcessDetails, type ReportData, type StatusPayload, type Viewer3DPayload } from '../types'
 
 type PageState = 'loading' | 'error' | 'success' | 'success-degraded'
+
+// --- presentational helpers (keep the page human-readable, not a wall of text) ---
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.6, fontWeight: 700 }}>
+      {children}
+    </Typography>
+  )
+}
+
+function Field({ label, value, accent }: { label: string; value: ReactNode; accent?: 'success' | 'warning' | 'default' }) {
+  const color = accent === 'success' ? 'success.main' : accent === 'warning' ? 'warning.main' : 'text.primary'
+  return (
+    <Stack direction="row" justifyContent="space-between" alignItems="baseline" spacing={2} sx={{ py: 0.6 }}>
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 600, color, textAlign: 'right' }}>{value}</Typography>
+    </Stack>
+  )
+}
+
+function humanizeAction(action: string): string {
+  return action
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase())
+}
+
+function timelineDotColor(action: string): string {
+  if (action.includes('FAILED')) return 'error.main'
+  if (action.includes('COMPLETED') || action.includes('READY')) return 'success.main'
+  return 'primary.main'
+}
 
 export function CaseDetailsPage() {
   const { id } = useParams()
@@ -254,32 +287,61 @@ export function CaseDetailsPage() {
       {tab === 0 && (
         <Grid2 container spacing={2}>
           <Grid2 size={{ xs: 12, lg: 7 }}>
-            <Card><CardContent>
+            <Card sx={{ height: '100%' }}><CardContent>
               <Typography variant="h6">Pipeline timeline</Typography>
               <Divider sx={{ my: 1.5 }} />
-              {status?.stageAuditTrail?.length ? status.stageAuditTrail.map((e, idx) => (
-                <Typography key={idx} variant="body2" sx={{ mb: 1 }}>{new Date(e.at).toLocaleString()} — {e.action}</Typography>
-              )) : <Alert severity="info">No stage events available yet.</Alert>}
+              {status?.stageAuditTrail?.length ? (
+                <Stack spacing={0}>
+                  {status.stageAuditTrail.map((e, idx) => {
+                    const last = idx === status.stageAuditTrail.length - 1
+                    return (
+                      <Stack key={idx} direction="row" spacing={1.5}>
+                        <Stack alignItems="center" sx={{ width: 16 }}>
+                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', mt: 0.5, bgcolor: timelineDotColor(e.action), flexShrink: 0 }} />
+                          {!last && <Box sx={{ flex: 1, width: '2px', bgcolor: 'divider', my: 0.25 }} />}
+                        </Stack>
+                        <Box sx={{ pb: last ? 0 : 2 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{humanizeAction(e.action)}</Typography>
+                          <Typography variant="caption" color="text.secondary">{new Date(e.at).toLocaleString()}</Typography>
+                        </Box>
+                      </Stack>
+                    )
+                  })}
+                </Stack>
+              ) : <Alert severity="info">No stage events available yet.</Alert>}
             </CardContent></Card>
           </Grid2>
           <Grid2 size={{ xs: 12, lg: 5 }}>
-            <Card><CardContent>
+            <Card sx={{ height: '100%' }}><CardContent>
               <Typography variant="h6">Execution summary</Typography>
-              <Stack mt={1.5} spacing={1}>
-                <Typography variant="body2">Findings count: {findings.length}</Typography>
-                <Typography variant="body2">Model version: {status?.modelVersion || 'not exposed by API'}</Typography>
-                <Typography variant="body2">Execution mode: {status?.executionMode || (caseSummary?.origin === 'SEEDED_DEMO' ? 'not applicable' : 'not run yet')}</Typography>
-                <Typography variant="body2">Result source: {resultSourceLabel}</Typography>
-                <Typography variant="body2">Result ready: {status?.resultReady ? 'yes' : 'no'}</Typography>
-                <Typography variant="body2">Pipeline mode: {status?.metrics?.mode ?? 'not exposed by API'}</Typography>
-                <Typography variant="body2">Lesion model: {status?.metrics?.lesionModel === true ? (status.metrics.lesionModelName ?? 'real model') : status?.metrics?.lesionModel === false ? 'heuristic (no dedicated model)' : 'not exposed by API'}</Typography>
-                <Typography variant="body2">Compute device: {status?.metrics?.device ?? 'not exposed by API'}</Typography>
-                <Typography variant="body2">Evidence bound: {reportData?.evidenceBound === true ? 'yes' : reportData?.evidenceBound === false ? 'no' : 'not exposed by API'}</Typography>
-                <Typography variant="body2">Case origin: {caseSummary?.origin ?? 'not exposed by API'}</Typography>
-                {caseSummary?.demoCaseSlug && <Typography variant="body2">Demo slug: {caseSummary.demoCaseSlug}</Typography>}
-                {caseSummary?.demoManifestVersion && <Typography variant="body2">Manifest version: {caseSummary.demoManifestVersion}</Typography>}
-                {caseSummary?.sourceDataset && <Typography variant="body2">Source dataset: {caseSummary.sourceDataset}</Typography>}
-                {caseSummary?.sourceAttribution && <Typography variant="body2">Source attribution: {caseSummary.sourceAttribution}</Typography>}
+              <Divider sx={{ my: 1.5 }} />
+              <Stack spacing={1.5}>
+                <Box>
+                  <SectionLabel>Result</SectionLabel>
+                  <Field label="Findings" value={findings.length} />
+                  <Field label="Result source" value={resultSourceLabel} />
+                  <Field label="Result ready" value={status?.resultReady ? 'Yes' : 'No'} accent={status?.resultReady ? 'success' : 'default'} />
+                  <Field label="Evidence bound" value={reportData?.evidenceBound === true ? 'Yes' : reportData?.evidenceBound === false ? 'No' : '—'} accent={reportData?.evidenceBound ? 'success' : 'default'} />
+                </Box>
+                <Box>
+                  <SectionLabel>Models &amp; compute</SectionLabel>
+                  <Field label="Pipeline mode" value={status?.metrics?.mode ?? '—'} />
+                  <Field
+                    label="Lesion model"
+                    value={status?.metrics?.lesionModel === true ? (status.metrics.lesionModelName ?? 'real model') : status?.metrics?.lesionModel === false ? 'heuristic' : '—'}
+                    accent={status?.metrics?.lesionModel === true ? 'success' : status?.metrics?.lesionModel === false ? 'warning' : 'default'}
+                  />
+                  <Field label="Compute device" value={status?.metrics?.device ?? '—'} />
+                  <Field label="Model version" value={status?.modelVersion || '—'} />
+                </Box>
+                <Box>
+                  <SectionLabel>Provenance</SectionLabel>
+                  <Field label="Case origin" value={caseSummary?.origin ?? '—'} />
+                  {caseSummary?.demoCaseSlug && <Field label="Demo slug" value={caseSummary.demoCaseSlug} />}
+                  {caseSummary?.demoManifestVersion && <Field label="Manifest version" value={caseSummary.demoManifestVersion} />}
+                  {caseSummary?.sourceDataset && <Field label="Source dataset" value={caseSummary.sourceDataset} />}
+                  {caseSummary?.sourceAttribution && <Field label="Source attribution" value={caseSummary.sourceAttribution} />}
+                </Box>
               </Stack>
             </CardContent></Card>
           </Grid2>
