@@ -9,3 +9,4 @@ nibabel==5.3.2
 scikit-image==0.25.0
 trimesh==4.6.0
 SimpleITK==2.4.0
+prometheus-client==0.21.0
