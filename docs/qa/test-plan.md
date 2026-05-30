@@ -57,6 +57,14 @@ PLAYWRIGHT_BASE_URL=http://localhost:5173 npx playwright test
 In CI the same specs run against the mock Docker Compose stack behind nginx
 (`PLAYWRIGHT_BASE_URL=http://localhost`).
 
+## Exploratory edge-case probe
+`frontend/e2e/exploratory-probe.mjs` exercises domain edges the scripted specs
+don't: seeded-import idempotency (no duplicate on re-import), delete → 404,
+injection-like `patientPseudoId` stored/echoed literally (React escapes on
+render), a doctor being blocked (403) from processing a seeded demo case, and
+double-process returning a graceful `202` then `409` (never 5xx). Run with
+`node exploratory-probe.mjs` against the live backend.
+
 ## Ad-hoc QA report
 `frontend/e2e/live-test-report.mjs` drives the running stack through the
 negative + happy-path scenarios and emits a self-contained HTML report with
