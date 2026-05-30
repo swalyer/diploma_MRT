@@ -85,6 +85,29 @@ export type ReportData = {
   capabilities: ReportCapabilities
 }
 
+export type StudySummary = {
+  caseId: number
+  patientPseudoId: string
+  modality: Modality
+  createdAt: string
+  lesionCount: number
+  totalVolumeMm3: number
+  largestLesionMm: number
+}
+
+export type ComparisonDelta = {
+  lesionCountDelta: number
+  totalVolumeDeltaMm3: number
+  totalVolumePctChange?: number | null
+  largestLesionDeltaMm: number
+}
+
+export type ComparisonResponse = {
+  baseline: StudySummary
+  followup: StudySummary
+  delta: ComparisonDelta
+}
+
 export type CaseItem = {
   id: number
   patientPseudoId: string

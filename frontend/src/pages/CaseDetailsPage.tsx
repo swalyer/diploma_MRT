@@ -22,6 +22,7 @@ import { useAuthStore } from '../store/authStore'
 import { Medical2DViewer } from '../components/Medical2DViewer'
 import { Viewer3D } from '../components/Viewer3D'
 import { FindingsPanel } from '../components/FindingsPanel'
+import { ComparisonPanel } from '../components/ComparisonPanel'
 import { ARTIFACT_TYPES, AUDIT_ACTIONS, FINDING_TYPES, type ArtifactItem, type CaseItem, type FindingItem, type ProcessDetails, type ReportData, type StatusPayload, type Viewer3DPayload } from '../types'
 
 type PageState = 'loading' | 'error' | 'success' | 'success-degraded'
@@ -303,6 +304,7 @@ export function CaseDetailsPage() {
         <Tab label="Report" />
         <Tab label="3D Viewer" />
         <Tab label="Artifacts / Technical" />
+        <Tab label="Longitudinal" />
         <Tab label="Audit / Admin" />
       </Tabs>
 
@@ -470,7 +472,15 @@ export function CaseDetailsPage() {
         </CardContent></Card>
       )}
 
-      {tab === 5 && (
+      {tab === 5 && caseSummary?.id && (
+        <Card><CardContent>
+          <Typography variant="h6">Longitudinal comparison</Typography>
+          <Divider sx={{ my: 1.5 }} />
+          <ComparisonPanel caseId={caseSummary.id} resultReady={status?.resultReady === true} />
+        </CardContent></Card>
+      )}
+
+      {tab === 6 && (
         <Card><CardContent>
           <Typography variant="h6">Audit / admin</Typography>
           <Typography variant="body2">Frontend exposes audit trail events and ownership-safe warnings. Role enforcement remains backend-controlled.</Typography>

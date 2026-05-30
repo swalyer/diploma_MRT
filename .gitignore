@@ -16,6 +16,7 @@ frontend/e2e/theme-preview-*.png
 frontend/e2e/case-preview-*.png
 frontend/e2e/adhoc-*.png
 frontend/e2e/live-*.png
+frontend/e2e/longitudinal-demo.png
 docs/qa/live-test-report.html
 backend/cp.txt
 backend/*-preview.pdf
