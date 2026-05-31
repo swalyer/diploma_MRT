@@ -18,6 +18,7 @@ frontend/e2e/adhoc-*.png
 frontend/e2e/live-*.png
 frontend/e2e/longitudinal-demo.png
 frontend/e2e/real-mri-overview.png
+frontend/e2e/admin-demo.png
 docs/qa/live-test-report.html
 backend/cp.txt
 backend/*-preview.pdf

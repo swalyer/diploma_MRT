@@ -482,8 +482,42 @@ export function CaseDetailsPage() {
 
       {tab === 6 && (
         <Card><CardContent>
-          <Typography variant="h6">Audit / admin</Typography>
-          <Typography variant="body2">Frontend exposes audit trail events and ownership-safe warnings. Role enforcement remains backend-controlled.</Typography>
+          <Typography variant="h6">Audit trail</Typography>
+          <Divider sx={{ my: 1.5 }} />
+          {status?.stageAuditTrail?.length ? (
+            <Stack spacing={1.2}>
+              {status.stageAuditTrail.map((e, idx) => (
+                <Box key={idx} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', mt: 0.8, bgcolor: timelineDotColor(e.action), flexShrink: 0 }} />
+                  <Box sx={{ flex: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={1}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{humanizeAction(e.action)}</Typography>
+                      <Typography variant="caption" color="text.secondary">{new Date(e.at).toLocaleString()}</Typography>
+                    </Stack>
+                    {e.details && (e.details.stage || e.details.message || e.details.error) && (
+                      <Typography variant="caption" color="text.secondary">
+                        {[e.details.stage, e.details.message, e.details.error].filter(Boolean).join(' · ')}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <Alert severity="info">No audit events recorded for this case. The persisted stage trail requires the audit database (APP_AUDIT_ENABLED=true); live progress is still streamed over SSE during processing.</Alert>
+          )}
+          {failureEvent && (
+            <>
+              <Divider sx={{ my: 1.5 }} />
+              <Typography variant="subtitle2">Last failure detail</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {[failureEvent.stage, failureEvent.message, failureEvent.error].filter(Boolean).join(' · ') || 'No structured failure detail.'}
+              </Typography>
+            </>
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+            Audit capture and role enforcement are backend-controlled; this view is read-only.
+          </Typography>
         </CardContent></Card>
       )}
     </Stack>

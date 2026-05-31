@@ -1,5 +1,7 @@
 package com.diploma.mrt.dto;
 
+import com.diploma.mrt.entity.CaseOrigin;
+import com.diploma.mrt.entity.CaseStatus;
 import com.diploma.mrt.entity.DemoCategory;
 import com.diploma.mrt.entity.ExecutionMode;
 import com.diploma.mrt.entity.Modality;
@@ -9,6 +11,16 @@ import java.util.List;
 
 public class AdminDtos {
     public record AdminUserSummary(Long id, String email, String role) {}
+    public record AdminCaseSummary(
+            Long id,
+            String patientPseudoId,
+            Modality modality,
+            CaseStatus status,
+            CaseOrigin origin,
+            String ownerEmail,
+            Instant createdAt,
+            Instant updatedAt
+    ) {}
     public record DemoCaseSummary(
             Long caseId,
             String caseSlug,

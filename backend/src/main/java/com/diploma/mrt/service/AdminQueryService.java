@@ -10,6 +10,7 @@ import com.diploma.mrt.repository.CaseRepository;
 import com.diploma.mrt.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -65,6 +66,22 @@ public class AdminQueryService {
                 .toList();
 
         return new AdminDtos.AdminSummaryResponse(executionMode, currentUserRole, health, capabilities, users, demoCases);
+    }
+
+    /** Operational view: ALL cases across owners (admin-only — gated at the controller). */
+    public List<AdminDtos.AdminCaseSummary> allCases() {
+        return caseRepository.findAll(Sort.by(Sort.Direction.DESC, "id")).stream()
+                .map(c -> new AdminDtos.AdminCaseSummary(
+                        c.getId(),
+                        c.getPatientPseudoId(),
+                        c.getModality(),
+                        c.getStatus(),
+                        c.effectiveOrigin(),
+                        c.getCreatedBy() == null ? null : c.getCreatedBy().getEmail(),
+                        c.getCreatedAt(),
+                        c.getUpdatedAt()
+                ))
+                .toList();
     }
 
     private MlDtos.MlHealthResponse unreachableHealth() {

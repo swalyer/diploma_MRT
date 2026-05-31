@@ -33,6 +33,12 @@ public class AdminController {
         return adminQueryService.buildSummary(currentUserRole);
     }
 
+    @GetMapping("/cases")
+    public java.util.List<AdminDtos.AdminCaseSummary> allCases() {
+        // Path is under /api/admin/** which SecurityConfig restricts to ROLE_ADMIN.
+        return adminQueryService.allCases();
+    }
+
     @PostMapping("/demo-cases/import")
     public DemoImportResult importDemoCase(Authentication authentication, @RequestBody @Valid DemoManifest manifest) {
         return demoCaseImportService.importManifest(authentication.getName(), manifest);

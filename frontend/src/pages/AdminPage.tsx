@@ -1,5 +1,5 @@
 import type { AxiosError } from 'axios'
-import { Alert, Button, Card, CardContent, Chip, Grid2, List, ListItem, ListItemText, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Grid2, List, ListItem, ListItemText, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -28,8 +28,24 @@ type AdminSummary = {
   }>
 }
 
+type AdminCase = {
+  id: number
+  patientPseudoId: string
+  modality: 'CT' | 'MRI'
+  status: string
+  origin: 'LIVE_PROCESSED' | 'SEEDED_DEMO'
+  ownerEmail: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+const GRAFANA_URL = (import.meta.env.VITE_GRAFANA_URL as string | undefined) || 'http://localhost:3000'
+const PROMETHEUS_URL = (import.meta.env.VITE_PROMETHEUS_URL as string | undefined) || 'http://localhost:9090'
+const GRAFANA_DASHBOARD = `${GRAFANA_URL}/d/mrt-overview/mrt-service-overview?kiosk&theme=dark&refresh=10s`
+
 export function AdminPage() {
   const [summary, setSummary] = useState<AdminSummary | null>(null)
+  const [allCases, setAllCases] = useState<AdminCase[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [manifestText, setManifestText] = useState('')
   const [importState, setImportState] = useState<'idle' | 'submitting'>('idle')
@@ -41,6 +57,12 @@ export function AdminPage() {
       const response = await api.get('/admin/summary')
       setSummary(response.data)
       setError(null)
+      try {
+        const casesResponse = await api.get('/admin/cases')
+        setAllCases(casesResponse.data)
+      } catch {
+        setAllCases(null)
+      }
     } catch (requestError) {
       const axiosError = requestError as AxiosError
       if (axiosError.response?.status === 403) {
@@ -85,7 +107,7 @@ export function AdminPage() {
 
   return <Stack spacing={2}>
     <Typography variant="h4">Admin & capability center</Typography>
-    {error ? <Alert severity="error">{error}</Alert> : <Alert severity="warning">This UI is operational but partial: user CRUD and dynamic config mutation APIs are not currently exposed in frontend.</Alert>}
+    {error ? <Alert severity="error">{error}</Alert> : <Alert severity="info">Operational console: full case inventory across owners, seeded-demo import, capability snapshot, and service metrics. User and config management are intentionally read-only here (mutations stay server-side).</Alert>}
 
     <Grid2 container spacing={2}>
       <Grid2 size={{ xs: 12, md: 6 }}><Card><CardContent><Typography variant="h6">Execution profiles</Typography><Stack direction="row" spacing={1}><Chip label={`mode: ${summary?.executionMode ?? 'unknown'}`}/><Chip color="success" label={summary?.currentUserRole ?? 'role: unknown'}/><Chip color={summary?.mlService?.status === 'UP' ? 'success' : 'error'} label={`ml: ${summary?.mlService?.status ?? 'unknown'}`} /></Stack><Typography variant="body2" color="text.secondary">Defaults and profile switching are backend-configured.</Typography><Typography variant="body2" color="text.secondary" mt={1}>ML version: {summary?.mlService?.version ?? 'unknown'} · liver model: {summary?.mlService?.liverModelConfigured ? 'configured' : 'fallback'} · lesion model: {summary?.mlService?.lesionModelConfigured ? 'configured' : 'fallback'} · MRI heuristic: {summary?.mlService?.mriHeuristicSupported ? 'on' : 'off'}</Typography></CardContent></Card></Grid2>
@@ -147,6 +169,46 @@ export function AdminPage() {
             )}
           </CardContent>
         </Card>
+      </Grid2>
+      <Grid2 size={{ xs: 12, md: 12 }}>
+        <Card><CardContent>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">All cases (operational)</Typography>
+            <Chip size="small" label={`${allCases?.length ?? 0} total`} />
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Every case across all owners — admin-only visibility (your Cases page shows only your own + seeded studies).</Typography>
+          {!allCases?.length ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>No cases yet, or admin case list unavailable.</Typography>
+          ) : (
+            <List dense data-testid="admin-all-cases">
+              {allCases.map((c) => (
+                <ListItem key={c.id} secondaryAction={<Button component={Link} to={`/cases/${c.id}`} size="small" variant="outlined">Open</Button>}>
+                  <ListItemText
+                    primary={`Case #${c.id} · ${c.modality} · ${c.patientPseudoId}`}
+                    secondary={`${c.status} · ${c.origin} · owner ${c.ownerEmail ?? 'n/a'} · created ${new Date(c.createdAt).toLocaleString()}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </CardContent></Card>
+      </Grid2>
+      <Grid2 size={{ xs: 12, md: 12 }}>
+        <Card><CardContent>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="h6">Service metrics (Grafana)</Typography>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="outlined" href={GRAFANA_URL} target="_blank" rel="noreferrer">Open Grafana</Button>
+              <Button size="small" variant="outlined" href={PROMETHEUS_URL} target="_blank" rel="noreferrer">Prometheus</Button>
+            </Stack>
+          </Stack>
+          <Alert severity="info" sx={{ mt: 1 }}>
+            Prometheus + Grafana run from the observability compose (<code>docker compose -f docker-compose.yml -f docker-compose.observability.yml up</code>). The dashboard below embeds when Grafana is reachable at {GRAFANA_URL}.
+          </Alert>
+          <Box sx={{ mt: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+            <Box component="iframe" title="MRT Grafana dashboard" src={GRAFANA_DASHBOARD} sx={{ width: '100%', height: 520, border: 0, display: 'block' }} />
+          </Box>
+        </CardContent></Card>
       </Grid2>
       <Grid2 size={{ xs: 12, md: 12 }}><Card><CardContent><Typography variant="h6">Registered users</Typography>{summary ? <List dense>{summary.users.map((user) => <ListItem key={user.id}><ListItemText primary={user.email} secondary={`role ${user.role} · userId ${user.id}`} /></ListItem>)}</List> : <Typography variant="body2" color="text.secondary">User list unavailable until admin summary is loaded.</Typography>}</CardContent></Card></Grid2>
     </Grid2>
