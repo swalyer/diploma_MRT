@@ -53,7 +53,21 @@ public class CaseAccessService {
         if (caseEntity.effectiveOrigin() == CaseOrigin.SEEDED_DEMO) {
             return;
         }
-        ensureOwnership(caseEntity, normalizedEmail);
+        if (caseEntity.getCreatedBy().getEmail().equals(normalizedEmail)) {
+            return;
+        }
+        // Admins have operational read access to every case (they can also see
+        // the full case inventory via /api/admin/cases). Mutation stays owner-bound.
+        if (isAdmin(normalizedEmail)) {
+            return;
+        }
+        throw new AccessDeniedException("Access denied");
+    }
+
+    private boolean isAdmin(String normalizedEmail) {
+        return userRepository.findByEmail(normalizedEmail)
+                .map(user -> user.getRole() == Role.ADMIN)
+                .orElse(false);
     }
 
     public void ensureMutationAccess(CaseEntity caseEntity, User user) {
