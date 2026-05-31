@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # (the post-training local path); otherwise the manifest weights key is used.
     nnunet_folds: str = '0'
     nnunet_checkpoint: str = 'checkpoint_final.pth'
+    nnunet_lesion_label: int = 2  # ATLAS: {0 bg, 1 liver, 2 tumour}
     nnunet_mri_model_dir: str = ''
     nnunet_ct_model_dir: str = ''
     nnunet_mri_weights_key: str = 'nnunet_atlas_mri_lesion'

@@ -23,6 +23,7 @@ def _nnunet_config() -> NnUnetAdapterConfig:
         device_preference=settings.device,
         folds=tuple(part.strip() for part in settings.nnunet_folds.split(',') if part.strip()),
         checkpoint=settings.nnunet_checkpoint,
+        lesion_label=settings.nnunet_lesion_label,
         results_cache_dir=settings.nnunet_results_dir,
         model_dir_by_modality={k: v for k, v in model_dirs.items() if v},
         weights_key_by_modality={k: v for k, v in weights_keys.items() if v},

@@ -46,6 +46,10 @@ class NnUnetAdapterConfig:
     results_cache_dir: str | None = None     # where manifest bundles are installed
     model_dir_by_modality: dict[str, str] = field(default_factory=dict)
     weights_key_by_modality: dict[str, str] = field(default_factory=dict)
+    # Which class in a multi-class model is the lesion/tumour. The ATLAS model
+    # is {0:bg, 1:liver, 2:tumour}, so the lesion mask is label 2 — copying the
+    # whole prediction would mislabel the entire liver as a lesion.
+    lesion_label: int = 2
 
 
 @dataclass(frozen=True)
@@ -210,19 +214,37 @@ class NnUnetAdapter:
             pred = tmp_out / f"{stem}.nii.gz"
             if not pred.exists():
                 return False
-            shutil.copy2(pred, out_path)
+            self._save_lesion_mask(pred, out_path)
             self._export_evidence(tmp_out / f"{stem}.npz", out_path, output_key, artifacts_root)
             return True
 
+    def _save_lesion_mask(self, pred_path: Path, out_path: Path) -> None:
+        """Extract the lesion class from the (possibly multi-class) prediction.
+
+        For the 3-class ATLAS model only label 2 (tumour) is the lesion; for a
+        binary lesion-only model the single foreground class is used.
+        """
+        image = nib.load(str(pred_path))
+        data = np.asanyarray(image.dataobj)
+        label = self.config.lesion_label
+        mask = data == label
+        if not mask.any() and int(data.max(initial=0)) == 1 and label != 1:
+            # Binary foreground model — the single positive class is the lesion.
+            mask = data > 0
+        nib.save(nib.Nifti1Image(mask.astype(np.uint8), image.affine, image.header), str(out_path))
+
     def _export_evidence(self, npz_path: Path, mask_path: Path, output_key: str, artifacts_root: str) -> None:
-        """Persist the foreground softmax probability as evidence so per-finding
+        """Persist the lesion-class softmax probability as evidence so per-finding
         confidence (FR-7) is model-derived, mirroring the heuristic evidence file."""
         if not npz_path.exists():
             return
         try:
             mask_image = nib.load(str(mask_path))
             probabilities = np.load(npz_path)["probabilities"]
-            foreground = (1.0 - probabilities[0]).astype(np.float32)
+            label = self.config.lesion_label
+            # Use the lesion-class channel when present; else fall back to 1-bg.
+            channel = probabilities[label] if probabilities.shape[0] > label else (1.0 - probabilities[0])
+            foreground = np.asarray(channel, dtype=np.float32)
             mask_shape = mask_image.shape
             if foreground.shape != mask_shape:
                 if foreground.T.shape == mask_shape:
