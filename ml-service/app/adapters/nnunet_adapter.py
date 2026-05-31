@@ -96,6 +96,11 @@ class NnUnetAdapter:
         key, _ = save_heuristic_lesion_mask(input_key, liver_mask_key, output_key, artifacts_root, modality_value)
         return LesionSegmentation.heuristic(key)
 
+    def has_model_for(self, modality) -> bool:
+        """Whether a real lesion model is configured for the modality (cheap check)."""
+        modality_value = getattr(modality, "value", modality)
+        return modality_value in self.configured_models()
+
     def configured_models(self) -> dict[str, str]:
         """Modality -> model name for models that could run without downloading.
 

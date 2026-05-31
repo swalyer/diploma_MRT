@@ -28,7 +28,12 @@ class RealPipeline(Pipeline):
         validate_request(request)
         input_key = request.fileReferences.inputObjectKey
         nii_key = to_nifti(input_key, self.artifacts_root)
-        if request.modality == Modality.MRI:
+        # The custom MRI preprocessing (N4 + isotropic resample + z-score) feeds
+        # the heuristic suspicious-zone path. nnU-Net does its OWN trained
+        # preprocessing internally, so running ours first double-normalizes and
+        # degrades the model — skip it when a real model will handle this modality
+        # (this also keeps every artifact in one consistent geometry).
+        if request.modality == Modality.MRI and not self.nnunet.has_model_for(request.modality):
             nii_key = preprocess_mri_volume(nii_key, f'{nii_key}.preprocessed.nii.gz', self.artifacts_root)
         liver_mask_key, liver_real = self.totalsegmentator.segment_liver(nii_key, f'{nii_key}.liver_mask.nii.gz', self.artifacts_root, request.modality)
 
