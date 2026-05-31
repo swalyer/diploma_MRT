@@ -37,11 +37,19 @@ class RealPipeline(Pipeline):
             nii_key = preprocess_mri_volume(nii_key, f'{nii_key}.preprocessed.nii.gz', self.artifacts_root)
         liver_mask_key, liver_real = self.totalsegmentator.segment_liver(nii_key, f'{nii_key}.liver_mask.nii.gz', self.artifacts_root, request.modality)
 
-        # Both CT and MRI lesions go through nnU-Net (FR-3); the adapter falls
-        # back to the heuristic suspicious-zone path when no model is configured.
-        lesion = self.nnunet.segment_lesion(nii_key, liver_mask_key, f'{nii_key}.lesion_mask.nii.gz', self.artifacts_root, request.modality)
+        # Both CT and MRI lesions go through nnU-Net (FR-3); the adapter falls back
+        # to the heuristic suspicious-zone path when no model is configured. A
+        # multi-class model (ATLAS liver+tumour) also emits a real liver mask that
+        # overwrites the heuristic liver above, so the 3D/2D liver is anatomically
+        # real (liver is the model's strongest class) instead of an ellipsoid.
+        lesion = self.nnunet.segment_lesion(
+            nii_key, liver_mask_key, f'{nii_key}.lesion_mask.nii.gz', self.artifacts_root, request.modality,
+            liver_output_key=liver_mask_key,
+        )
         lesion_key = lesion.object_key
         lesion_real = lesion.is_model
+        if lesion.liver_object_key:
+            liver_real = True
 
         lesion_image = nib.load(str(Path(self.artifacts_root) / lesion_key))
         lesion_data = lesion_image.get_fdata()

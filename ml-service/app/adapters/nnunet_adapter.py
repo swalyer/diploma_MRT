@@ -50,6 +50,9 @@ class NnUnetAdapterConfig:
     # is {0:bg, 1:liver, 2:tumour}, so the lesion mask is label 2 — copying the
     # whole prediction would mislabel the entire liver as a lesion.
     lesion_label: int = 2
+    # Liver class in the same multi-class model; emitted as a real liver mask so
+    # the pipeline can use it instead of the heuristic ellipsoid. None = no liver.
+    liver_label: int | None = 1
 
 
 @dataclass(frozen=True)
@@ -70,6 +73,7 @@ class NnUnetAdapter:
         output_key: str,
         artifacts_root: str,
         modality: str,
+        liver_output_key: str | None = None,
     ) -> LesionSegmentation:
         modality_value = getattr(modality, "value", modality)
         in_path = Path(artifacts_root) / input_key
@@ -80,14 +84,17 @@ class NnUnetAdapter:
         if model is not None:
             try:
                 device, device_label = _resolve_device(self.config.device_preference)
-                produced = self._run_predictor(in_path, out_path, output_key, artifacts_root, model, device)
+                produced, liver_saved = self._run_predictor(
+                    in_path, out_path, output_key, artifacts_root, model, device, liver_output_key
+                )
                 if produced:
                     logger.info(
-                        "nnU-Net lesion inference succeeded model=%s device=%s input=%s",
-                        model.name, device_label, input_key,
+                        "nnU-Net lesion inference succeeded model=%s device=%s input=%s liver=%s",
+                        model.name, device_label, input_key, liver_saved,
                     )
                     return LesionSegmentation(
                         object_key=output_key, is_model=True, model_name=model.name, device=device_label,
+                        liver_object_key=liver_output_key if liver_saved else None,
                     )
                 logger.warning("nnU-Net produced no output for %s, falling back to heuristic", input_key)
             except Exception as exc:  # noqa: BLE001 — never let inference break the request
@@ -180,7 +187,8 @@ class NnUnetAdapter:
         artifacts_root: str,
         model: _ResolvedModel,
         device,
-    ) -> bool:
+        liver_output_key: str | None = None,
+    ) -> tuple[bool, bool]:
         from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
         with tempfile.TemporaryDirectory(prefix="nnunet_infer_") as tmp:
@@ -218,10 +226,26 @@ class NnUnetAdapter:
 
             pred = tmp_out / f"{stem}.nii.gz"
             if not pred.exists():
-                return False
+                return False, False
             self._save_lesion_mask(pred, out_path)
             self._export_evidence(tmp_out / f"{stem}.npz", out_path, output_key, artifacts_root)
-            return True
+
+            liver_saved = False
+            if liver_output_key is not None and self.config.liver_label is not None:
+                liver_saved = self._save_class_mask(pred, Path(artifacts_root) / liver_output_key, self.config.liver_label)
+            return True, liver_saved
+
+    def _save_class_mask(self, pred_path: Path, out_path: Path, label: int) -> bool:
+        """Save a binary mask for a single class label (e.g. liver=1). Returns
+        False (and writes nothing) if that class is absent from the prediction."""
+        image = nib.load(str(pred_path))
+        data = np.asanyarray(image.dataobj)
+        mask = data == label
+        if not mask.any():
+            return False
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        nib.save(nib.Nifti1Image(mask.astype(np.uint8), image.affine, image.header), str(out_path))
+        return True
 
     def _save_lesion_mask(self, pred_path: Path, out_path: Path) -> None:
         """Extract the lesion class from the (possibly multi-class) prediction.

@@ -15,6 +15,9 @@ class LesionSegmentation:
     is_model: bool
     model_name: str | None = None
     device: str | None = None
+    # When a multi-class model (e.g. ATLAS liver+tumour) also yields the liver,
+    # the pipeline can use this real liver mask instead of the heuristic one.
+    liver_object_key: str | None = None
 
     @classmethod
     def heuristic(cls, object_key: str) -> "LesionSegmentation":
