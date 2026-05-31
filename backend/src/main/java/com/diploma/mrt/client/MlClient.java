@@ -24,7 +24,7 @@ public class MlClient {
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+        requestFactory.setReadTimeout(Duration.ofSeconds(appProperties.ml().requestTimeoutSeconds()));
         this.restClient = RestClient.builder()
                 .baseUrl(appProperties.ml().url())
                 .requestFactory(requestFactory)

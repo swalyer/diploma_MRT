@@ -32,6 +32,7 @@ app:
   ml:
     url: ${APP_ML_URL:http://localhost:8000}
     mode: ${APP_ML_MODE:mock}
+    request-timeout-seconds: ${APP_ML_REQUEST_TIMEOUT_SECONDS:600}
   processing-recovery-enabled: ${APP_PROCESSING_RECOVERY_ENABLED:true}
   demo-users-enabled: ${APP_DEMO_USERS_ENABLED:false}
   storage-root: ${APP_STORAGE_ROOT:./storage}
