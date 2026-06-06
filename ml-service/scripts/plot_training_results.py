@@ -60,14 +60,45 @@ def _parse_nnunet_log(log_path: Path) -> tuple[list[float], list[float]]:
     return train, val
 
 
-def _parse_nnunet_progress_csv(progress_path: Path) -> tuple[list[float], list[float], list[float]]:
-    """Parse progress.png data from nnU-Net's own CSV if available.
+def _parse_all_logs_by_epoch(fold_dir: Path) -> dict[int, dict]:
+    """Parse every training_log_*.txt in a fold dir, keyed by true epoch number.
 
-    nnU-Net writes training_log_*.txt only; this fallback reads from
-    the auto-generated progress.png source data stored in
-    'training_log_YYYY_MM_DD_HH_MM_SS.txt'.
+    Training was paused/resumed several times, producing multiple log files with
+    overlapping epoch ranges. We track the current epoch from "Epoch N" headers
+    and attach the train_loss / val_loss / per-class pseudo-Dice that follow it.
+    Later files overwrite earlier ones for the same epoch (resume re-runs a few
+    epochs), so the result is a clean, de-duplicated epoch -> metrics map.
     """
-    return [], [], []
+    epoch_re = re.compile(r":\s*Epoch (\d+)\s*$")
+    train_re = re.compile(r"train_loss\s+(-?[\d.eE+\-]+)")
+    val_re = re.compile(r"val_loss\s+(-?[\d.eE+\-]+)")
+    dice_re = re.compile(r"Pseudo dice\s*\[([^\]]+)\]")
+
+    by_epoch: dict[int, dict] = {}
+    for log_path in sorted(fold_dir.glob("training_log_*.txt")):
+        current = None
+        for line in log_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            em = epoch_re.search(line)
+            if em:
+                current = int(em.group(1))
+                by_epoch.setdefault(current, {})
+                continue
+            if current is None:
+                continue
+            tm = train_re.search(line)
+            if tm:
+                by_epoch[current]["train"] = float(tm.group(1))
+            vm = val_re.search(line)
+            if vm:
+                by_epoch[current]["val"] = float(vm.group(1))
+            dm = dice_re.search(line)
+            if dm:
+                nums = re.findall(r"-?\d+\.?\d*(?:[eE][+\-]?\d+)?", dm.group(1))
+                vals = [float(n) for n in nums]
+                if len(vals) >= 2:
+                    by_epoch[current]["dice_liver"] = vals[0]
+                    by_epoch[current]["dice_tumour"] = vals[1]
+    return by_epoch
 
 
 def _load_eval(json_path: Path | None) -> dict:
@@ -86,37 +117,54 @@ def _load_per_case_csv(csv_path: Path | None) -> list[dict]:
 # ── plot 1: loss curves ──────────────────────────────────────────────────────
 
 def plot_loss_curves(results_dir: Path, out_dir: Path) -> None:
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    """Two panels by TRUE epoch number (0-999), stitched across all resume logs:
+    left = train/val loss, right = per-class pseudo-Dice (liver, tumour)."""
+    fold_dirs = sorted(results_dir.glob("fold_*"))
+    fig, (ax_loss, ax_dice) = plt.subplots(1, 2, figsize=(14, 5))
     found_any = False
 
-    for fold in range(5):
-        fold_dir = results_dir / f"fold_{fold}"
-        logs = sorted(fold_dir.glob("training_log_*.txt")) if fold_dir.exists() else []
-        if not logs:
-            continue
-        train_losses, val_losses = _parse_nnunet_log(logs[-1])
-        if not train_losses:
+    for fold_dir in fold_dirs:
+        fold = fold_dir.name.replace("fold_", "")
+        by_epoch = _parse_all_logs_by_epoch(fold_dir)
+        if not by_epoch:
             continue
         found_any = True
-        epochs = range(1, len(train_losses) + 1)
-        ax.plot(epochs, train_losses, color=PALETTE[fold % len(PALETTE)],
-                alpha=0.85, linewidth=1.5, label=f"Fold {fold} train")
-        if val_losses:
-            ax.plot(range(1, len(val_losses) + 1), val_losses,
-                    color=PALETTE[fold % len(PALETTE)], linestyle="--",
-                    alpha=0.6, linewidth=1.2, label=f"Fold {fold} val")
+        epochs = sorted(by_epoch)
+        color = PALETTE[int(fold) % len(PALETTE)]
+
+        train = [(e, by_epoch[e]["train"]) for e in epochs if "train" in by_epoch[e]]
+        val = [(e, by_epoch[e]["val"]) for e in epochs if "val" in by_epoch[e]]
+        if train:
+            ax_loss.plot(*zip(*train), color=color, linewidth=1.3, alpha=0.9, label=f"Fold {fold} train")
+        if val:
+            ax_loss.plot(*zip(*val), color=color, linestyle="--", linewidth=1.1, alpha=0.65, label=f"Fold {fold} val")
+
+        liver = [(e, by_epoch[e]["dice_liver"]) for e in epochs if "dice_liver" in by_epoch[e]]
+        tumour = [(e, by_epoch[e]["dice_tumour"]) for e in epochs if "dice_tumour" in by_epoch[e]]
+        if liver:
+            ax_dice.plot(*zip(*liver), color="#2ca02c", linewidth=1.2, alpha=0.85, label="liver")
+        if tumour:
+            ax_dice.plot(*zip(*tumour), color="#d62728", linewidth=1.0, alpha=0.7, label="tumour")
 
     if not found_any:
         print("[WARN] No training logs found — skipping loss_curves.png")
         plt.close(fig)
         return
 
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Loss (CE + Dice)")
-    ax.set_title("nnU-Net Training Loss Curves — Dataset 501 (ATLAS)")
-    ax.legend(fontsize=9, ncol=2, framealpha=0.5)
-    ax.grid(axis="y", linestyle=":", alpha=0.5)
+    ax_loss.set_xlabel("Epoch")
+    ax_loss.set_ylabel("Loss (CE + soft Dice)")
+    ax_loss.set_title("Training / Validation Loss")
+    ax_loss.legend(fontsize=9, framealpha=0.5)
+    ax_loss.grid(linestyle=":", alpha=0.5)
 
+    ax_dice.set_xlabel("Epoch")
+    ax_dice.set_ylabel("Pseudo-Dice (validation)")
+    ax_dice.set_title("Per-class Pseudo-Dice during training")
+    ax_dice.set_ylim(0, 1.0)
+    ax_dice.legend(fontsize=9, framealpha=0.5)
+    ax_dice.grid(linestyle=":", alpha=0.5)
+
+    fig.suptitle("nnU-Net 3d_fullres — Dataset 501 (ATLAS liver+tumour), fold 0", fontweight="bold")
     out = out_dir / "loss_curves.png"
     fig.savefig(out)
     plt.close(fig)
@@ -126,43 +174,51 @@ def plot_loss_curves(results_dir: Path, out_dir: Path) -> None:
 # ── plot 2: dice distribution per fold ───────────────────────────────────────
 
 def plot_dice_distribution(results_dir: Path, out_dir: Path) -> None:
-    all_dices: list[list[float]] = []
-    fold_labels: list[str] = []
+    """Per-class final-validation Dice box plot, read from nnU-Net summary.json.
 
-    for fold in range(5):
-        fold_dir = results_dir / f"fold_{fold}"
-        # nnU-Net writes val metrics to validation/summary.json
+    nnU-Net v2 structure: summary['metric_per_case'] is a LIST; each entry has
+    ['metrics'][label]['Dice'] keyed by label id ('1' liver, '2' tumour)."""
+    label_names = {"1": "liver", "2": "tumour"}
+    per_class: dict[str, list[float]] = {}
+
+    for fold_dir in sorted(results_dir.glob("fold_*")):
         summary_path = fold_dir / "validation" / "summary.json"
         if not summary_path.exists():
             continue
         data = json.loads(summary_path.read_text())
-        # nnU-Net v2 summary structure
-        metric_per_case = data.get("metric_per_case", {})
-        dices = []
-        for case_data in metric_per_case.values():
-            d = case_data.get("metrics", {}).get("Dice", None)
-            if d is not None:
-                dices.append(float(d))
-        if dices:
-            all_dices.append(dices)
-            fold_labels.append(f"Fold {fold}")
+        for case in data.get("metric_per_case", []):
+            metrics = case.get("metrics", {})
+            for label, name in label_names.items():
+                d = metrics.get(label, {}).get("Dice")
+                if d is not None and not (isinstance(d, float) and d != d):  # skip NaN
+                    per_class.setdefault(name, []).append(float(d))
 
-    if not all_dices:
+    per_class = {k: v for k, v in per_class.items() if v}
+    if not per_class:
         print("[WARN] No validation summary.json found — skipping dice_distribution.png")
         return
 
-    fig, ax = plt.subplots(figsize=(max(4, len(all_dices) * 1.5 + 1.5), 5))
-    bp = ax.boxplot(all_dices, patch_artist=True, notch=False,
-                    medianprops=dict(color="black", linewidth=2))
-    for patch, color in zip(bp["boxes"], PALETTE):
-        patch.set_facecolor(color)
-        patch.set_alpha(0.7)
+    names = list(per_class)
+    data_cols = [per_class[n] for n in names]
+    colors = {"liver": "#2ca02c", "tumour": "#d62728"}
 
-    ax.set_xticklabels(fold_labels)
+    fig, ax = plt.subplots(figsize=(2 + len(names) * 1.8, 5))
+    bp = ax.boxplot(data_cols, patch_artist=True, widths=0.55,
+                    medianprops=dict(color="black", linewidth=2))
+    for patch, name in zip(bp["boxes"], names):
+        patch.set_facecolor(colors.get(name, "#1f77b4"))
+        patch.set_alpha(0.6)
+    # overlay individual cases
+    for i, col in enumerate(data_cols, start=1):
+        x = np.random.normal(i, 0.05, size=len(col))
+        ax.scatter(x, col, s=22, color="black", alpha=0.5, zorder=3)
+
+    ax.set_xticks(range(1, len(names) + 1))
+    ax.set_xticklabels([f"{n}\n(mean {np.mean(per_class[n]):.3f})" for n in names])
     ax.set_ylabel("Dice Score")
-    ax.set_title("Validation Dice per Fold — 5-fold Cross-Validation")
+    ax.set_title("Final Validation Dice per Class — fold 0 (12 cases)")
     ax.set_ylim(0, 1.05)
-    ax.axhline(0.5, color="gray", linestyle=":", alpha=0.5, label="Dice = 0.5")
+    ax.axhline(0.45, color="gray", linestyle=":", alpha=0.7, label="thesis bar = 0.45")
     ax.legend(fontsize=9)
     ax.grid(axis="y", linestyle=":", alpha=0.5)
 

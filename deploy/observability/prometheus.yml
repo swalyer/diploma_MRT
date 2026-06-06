@@ -11,3 +11,10 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ['ml-service:8000']
+
+  # PostgreSQL is monitored through a postgres_exporter sidecar on the data host
+  # (connection/replication/transaction metrics). The exporter is deployed
+  # alongside the database; Prometheus scrapes it like any other target.
+  - job_name: postgres
+    static_configs:
+      - targets: ['postgres-exporter:9187']

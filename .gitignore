@@ -36,3 +36,10 @@ storage/weights/
 **/nnUNet_raw/
 **/nnUNet_preprocessed/
 **/nnUNet_results/
+
+# Thesis (ВКР) generation scratch: build scripts with machine-local absolute paths,
+# generated .docx deliverables and baseline scratch — kept out of the software repo.
+docs/diploma/
+docs/tier1_*
+docs/eval_baseline_*
+.claude/settings.local.json

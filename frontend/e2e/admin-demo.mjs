@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test'
+const UI = 'http://localhost:5173'
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1440, height: 1400 } })
+await page.addInitScript(() => localStorage.setItem('mrt.theme.mode', 'dark'))
+await page.goto(`${UI}/login`, { waitUntil: 'networkidle' })
+await page.getByTestId('login-email').fill('admin@demo.local')
+await page.getByTestId('login-password').fill('Admin123!')
+await page.getByTestId('login-submit').click()
+await page.waitForURL('**/cases', { timeout: 15000 }).catch(() => {})
+await page.goto(`${UI}/admin`, { waitUntil: 'networkidle' })
+await page.waitForTimeout(2000)
+await page.screenshot({ path: 'admin-demo.png', fullPage: true })
+await browser.close()
+console.log('saved admin-demo.png')
